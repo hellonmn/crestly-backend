@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "nest start --watch",
-    "prebuild": "node ../../scripts/run-bin.js prisma/build/index.js generate",
-    "build": "node ../../scripts/run-bin.js @nestjs/cli/bin/nest.js build",
+    "prebuild": "prisma generate",
+    "build": "nest build",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
     "db:pull": "prisma db pull",
