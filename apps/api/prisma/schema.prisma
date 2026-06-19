@@ -1,0 +1,1394 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model PartnerSchool {
+  id                Int                 @id @default(autoincrement()) @db.UnsignedInt
+  name              String              @db.VarChar(160)
+  slug              String              @unique(map: "uniq_slug") @db.VarChar(64)
+  status            PartnerSchoolStatus @default(onboarding)
+  dbHost            String              @default("localhost") @map("db_host") @db.VarChar(120)
+  dbName            String              @map("db_name") @db.VarChar(120)
+  dbUser            String              @map("db_user") @db.VarChar(120)
+  dbPassEnc         String?             @map("db_pass_enc") @db.Text
+  contactPerson     String?             @map("contact_person") @db.VarChar(120)
+  contactPhone      String?             @map("contact_phone") @db.VarChar(20)
+  contactEmail      String?             @map("contact_email") @db.VarChar(160)
+  city              String?             @db.VarChar(80)
+  state             String?             @db.VarChar(80)
+  address           String?             @db.VarChar(255)
+  board             String?             @db.VarChar(60)
+  latitude          Decimal?            @db.Decimal(10, 7)
+  longitude         Decimal?            @db.Decimal(10, 7)
+  maps_link         String?             @db.VarChar(255)
+  geofence_school_m Int?                @default(100) @db.UnsignedSmallInt
+  geofence_driver_m Int?                @default(50) @db.UnsignedSmallInt
+  brandColor        String?             @map("brand_color") @db.VarChar(16)
+  logoPath          String?             @map("logo_path") @db.VarChar(255)
+  plan              String?             @db.VarChar(40)
+  notes             String?             @db.Text
+  onboardedAt       DateTime?           @map("onboarded_at") @db.Timestamp(0)
+  createdAt         DateTime?           @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt         DateTime?           @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@index([status], map: "idx_status")
+  @@map("partner_schools")
+}
+
+model PlatformAdmin {
+  id           Int           @id @default(autoincrement()) @db.UnsignedInt
+  name         String        @db.VarChar(120)
+  email        String        @unique(map: "uniq_email") @db.VarChar(160)
+  phone        String?       @db.VarChar(20)
+  passwordHash String        @map("password_hash") @db.VarChar(255)
+  status       AccountStatus @default(active)
+  lastLoginAt  DateTime?     @map("last_login_at") @db.Timestamp(0)
+  createdAt    DateTime?     @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt    DateTime?     @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@map("platform_admins")
+}
+
+model Session {
+  code                String         @id @db.VarChar(10)
+  label               String         @db.VarChar(40)
+  isCurrent           Boolean        @default(false) @map("is_current")
+  startedAt           DateTime       @map("started_at") @db.Date
+  endedAt             DateTime       @map("ended_at") @db.Date
+  promotedFrom        String?        @map("promoted_from") @db.VarChar(10)
+  promotedAt          DateTime?      @map("promoted_at") @db.Timestamp(0)
+  attendance          attendance[]
+  fee_payments        fee_payments[]
+  promotedFromSession Session?       @relation("SessionPromotion", fields: [promotedFrom], references: [code], onUpdate: Restrict, map: "fk_sessions_prev")
+  promotedSessions    Session[]      @relation("SessionPromotion")
+  studentFees         StudentFee[]
+
+  @@index([promotedFrom], map: "fk_sessions_prev")
+  @@index([isCurrent], map: "idx_current")
+  @@map("sessions")
+}
+
+model SchoolInfo {
+  k String  @id @db.VarChar(64)
+  v String? @db.Text
+
+  @@map("school_info")
+}
+
+model SiblingFamily {
+  familyId     Int       @id @map("family_id") @db.UnsignedInt
+  fatherName   String?   @map("father_name") @db.VarChar(120)
+  motherName   String?   @map("mother_name") @db.VarChar(120)
+  siblingCount Int?      @map("sibling_count") @db.UnsignedTinyInt
+  membersText  String?   @map("members_text") @db.Text
+  students     Student[]
+
+  @@map("sibling_families")
+}
+
+model PickupPoint {
+  id               Int                @id @default(autoincrement()) @db.UnsignedInt
+  name             String             @unique(map: "uniq_pickup_name") @db.VarChar(160)
+  latitude         Decimal?           @db.Decimal(10, 7)
+  longitude        Decimal?           @db.Decimal(10, 7)
+  distanceKm       Decimal?           @map("distance_km") @db.Decimal(5, 2)
+  googleMapsLink   String?            @map("google_maps_link") @db.Text
+  staff_attendance staff_attendance[]
+  students         Student[]
+  users            User[]
+
+  @@map("pickup_points")
+}
+
+model Student {
+  srNumber                 Int                     @id @map("sr_number") @db.UnsignedInt
+  studentName              String                  @map("student_name") @db.VarChar(120)
+  fatherName               String?                 @map("father_name") @db.VarChar(120)
+  motherName               String?                 @map("mother_name") @db.VarChar(120)
+  dob                      DateTime?               @db.Date
+  age                      Int?                    @db.UnsignedTinyInt
+  blood_group              String?                 @db.VarChar(8)
+  gender                   StudentGender?
+  address                  String?                 @db.Text
+  home_city                String?                 @db.VarChar(80)
+  home_state               String?                 @db.VarChar(80)
+  home_address             String?                 @db.Text
+  local_guardian_name      String?                 @db.VarChar(120)
+  guardian_relation        String?                 @db.VarChar(60)
+  local_guardian_contact   String?                 @db.VarChar(20)
+  local_guardian_whatsapp  String?                 @db.VarChar(20)
+  local_guardian_address   String?                 @db.Text
+  class                    String                  @db.VarChar(16)
+  section                  String                  @db.VarChar(8)
+  stream                   String?                 @db.VarChar(16)
+  sub_stream               String?                 @db.VarChar(16)
+  schoolName               String?                 @map("school_name") @db.VarChar(120)
+  board                    String?                 @db.VarChar(32)
+  fatherContact            String?                 @map("father_contact") @db.VarChar(20)
+  father_whatsapp          String?                 @db.VarChar(20)
+  motherContact            String?                 @map("mother_contact") @db.VarChar(20)
+  mother_whatsapp          String?                 @db.VarChar(20)
+  callingNumber            String?                 @map("calling_number") @db.VarChar(20)
+  whatsappNumber           String?                 @map("whatsapp_number") @db.VarChar(20)
+  pickupPointId            Int?                    @map("pickup_point_id") @db.UnsignedInt
+  is_hostel                Boolean                 @default(false)
+  familyId                 Int?                    @map("family_id") @db.UnsignedInt
+  status                   StudentStatus           @default(active)
+  createdAt                DateTime?               @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt                DateTime?               @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  academic_contact_person  String?                 @db.VarChar(120)
+  academic_calling_number  String?                 @db.VarChar(20)
+  academic_whatsapp_number String?                 @db.VarChar(20)
+  fee_contact_person       String?                 @db.VarChar(120)
+  fee_calling_number       String?                 @db.VarChar(20)
+  fee_whatsapp_number      String?                 @db.VarChar(20)
+  pickup_point_name        String?                 @db.VarChar(120)
+  pickup_latitude          Decimal?                @db.Decimal(10, 7)
+  pickup_longitude         Decimal?                @db.Decimal(10, 7)
+  pickup_distance_km       Decimal?                @db.Decimal(6, 2)
+  pickup_maps_link         String?                 @db.VarChar(255)
+  attendance               attendance[]
+  exam_co_grades           exam_co_grades[]
+  exam_marks               exam_marks[]
+  fee_payments             fee_payments[]
+  hostel_allocations       hostel_allocations[]
+  student_edit_requests    student_edit_requests[]
+  fees                     StudentFee[]
+  family                   SiblingFamily?          @relation(fields: [familyId], references: [familyId], onUpdate: Restrict, map: "fk_students_family")
+  pickupPoint              PickupPoint?            @relation(fields: [pickupPointId], references: [id], onUpdate: Restrict, map: "fk_students_pickup")
+
+  @@index([class, section], map: "idx_class_section")
+  @@index([familyId], map: "idx_family")
+  @@index([pickupPointId], map: "idx_pickup")
+  @@index([studentName], map: "idx_name")
+  @@map("students")
+}
+
+model StudentFee {
+  srNumber             Int                     @map("sr_number") @db.UnsignedInt
+  sessionCode          String                  @map("session_code") @db.VarChar(10)
+  admissionStatus      FeeAdmissionStatus      @default(Continuing) @map("admission_status")
+  siblingPosition      String?                 @map("sibling_position") @db.VarChar(32)
+  siblingDiscountPct   Decimal                 @default(0.00) @map("sibling_discount_pct") @db.Decimal(5, 2)
+  lodging_discount_pct Decimal                 @default(0.00) @db.Decimal(5, 2)
+  tuitionOriginal      Int                     @default(0) @map("tuition_original") @db.UnsignedInt
+  tuitionDiscount      Int                     @default(0) @map("tuition_discount") @db.UnsignedInt
+  tuitionPayable       Int                     @default(0) @map("tuition_payable") @db.UnsignedInt
+  annualCharges        Int                     @default(0) @map("annual_charges") @db.UnsignedInt
+  activityFee          Int                     @default(0) @map("activity_fee") @db.UnsignedInt
+  examFee              Int                     @default(0) @map("exam_fee") @db.UnsignedInt
+  books_uniform_est    Int                     @default(0) @db.UnsignedInt
+  distanceKm           Decimal?                @map("distance_km") @db.Decimal(5, 2)
+  transportSlab        String?                 @map("transport_slab") @db.VarChar(16)
+  transportFee         Int                     @default(0) @map("transport_fee") @db.UnsignedInt
+  is_hostel            Boolean                 @default(false)
+  room_type            student_fees_room_type?
+  hostel_lodging       Int                     @default(0) @db.UnsignedInt
+  hostel_mess          Int                     @default(0) @db.UnsignedInt
+  hostel_common        Int                     @default(0) @db.UnsignedInt
+  hostel_one_time      Int                     @default(0) @db.UnsignedInt
+  yearlyRecurringTotal Int                     @default(0) @map("yearly_recurring_total") @db.UnsignedInt
+  registrationFee      Int                     @default(0) @map("registration_fee") @db.UnsignedInt
+  admissionFee         Int                     @default(0) @map("admission_fee") @db.UnsignedInt
+  cautionMoney         Int                     @default(0) @map("caution_money") @db.UnsignedInt
+  firstYearExtras      Int                     @default(0) @map("first_year_extras") @db.UnsignedInt
+  totalThisYear        Int                     @default(0) @map("total_this_year") @db.UnsignedInt
+  quarterlyInstallment Int                     @default(0) @map("quarterly_installment") @db.UnsignedInt
+  monthlyEmi           Int                     @default(0) @map("monthly_emi") @db.UnsignedInt
+  paidAmount           Int                     @default(0) @map("paid_amount") @db.UnsignedInt
+  dueAmount            Int                     @default(0) @map("due_amount") @db.UnsignedInt
+  paymentStatus        FeePaymentStatus        @default(pending) @map("payment_status")
+  classAtSession       String?                 @map("class_at_session") @db.VarChar(16)
+  sectionAtSession     String?                 @map("section_at_session") @db.VarChar(8)
+  session              Session                 @relation(fields: [sessionCode], references: [code], onUpdate: Restrict, map: "fk_fees_session")
+  student              Student                 @relation(fields: [srNumber], references: [srNumber], onDelete: Cascade, onUpdate: Restrict, map: "fk_fees_student")
+
+  @@id([srNumber, sessionCode])
+  @@index([sessionCode], map: "idx_session")
+  @@index([paymentStatus], map: "idx_status")
+  @@index([admissionStatus], map: "idx_admission")
+  @@map("student_fees")
+}
+
+model User {
+  id                                                                Int                       @id @default(autoincrement()) @db.UnsignedInt
+  employee_id                                                       String?                   @db.VarChar(20)
+  name                                                              String                    @db.VarChar(120)
+  designation                                                       String?                   @db.VarChar(120)
+  department                                                        String?                   @db.VarChar(80)
+  gender                                                            users_gender?
+  dob                                                               DateTime?                 @db.Date
+  date_of_joining                                                   DateTime?                 @db.Date
+  experience_years                                                  Int?                      @db.UnsignedTinyInt
+  qualification                                                     String?                   @db.VarChar(160)
+  employment_type                                                   String?                   @db.VarChar(40)
+  reports_to                                                        String?                   @db.VarChar(120)
+  whatsapp                                                          String?                   @db.VarChar(20)
+  emergency_contact                                                 String?                   @db.VarChar(20)
+  address                                                           String?                   @db.Text
+  blood_group                                                       String?                   @db.VarChar(8)
+  monthly_salary                                                    Int?                      @db.UnsignedInt
+  class_teacher_of                                                  String?                   @db.VarChar(60)
+  email                                                             String?                   @unique(map: "uniq_email") @db.VarChar(120)
+  phone                                                             String?                   @unique(map: "uniq_phone") @db.VarChar(20)
+  passwordHash                                                      String?                   @map("password_hash") @db.VarChar(255)
+  roleId                                                            Int?                      @map("role_id") @db.UnsignedInt
+  reporting_user_id                                                 Int?                      @db.UnsignedInt
+  geofence_pickup_id                                                Int?                      @db.UnsignedInt
+  status                                                            AccountStatus             @default(active)
+  lastLoginAt                                                       DateTime?                 @map("last_login_at") @db.Timestamp(0)
+  createdAt                                                         DateTime?                 @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt                                                         DateTime?                 @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  admission_enquiries_admission_enquiries_assigned_toTousers        admission_enquiries[]     @relation("admission_enquiries_assigned_toTousers")
+  admission_enquiries_admission_enquiries_created_byTousers         admission_enquiries[]     @relation("admission_enquiries_created_byTousers")
+  admission_followups                                               admission_followups[]
+  class_diary_class_diary_created_byTousers                         class_diary[]             @relation("class_diary_created_byTousers")
+  class_diary_class_diary_teacher_user_idTousers                    class_diary[]             @relation("class_diary_teacher_user_idTousers")
+  dashboard_reviews                                                 dashboard_reviews[]
+  exam_co_grades                                                    exam_co_grades[]
+  exam_marks                                                        exam_marks[]
+  holidays                                                          holidays[]
+  leave_balance_overrides_leave_balance_overrides_created_byTousers leave_balance_overrides[] @relation("leave_balance_overrides_created_byTousers")
+  leave_balance_overrides_leave_balance_overrides_user_idTousers    leave_balance_overrides[] @relation("leave_balance_overrides_user_idTousers")
+  leaves_leaves_decided_byTousers                                   leaves[]                  @relation("leaves_decided_byTousers")
+  leaves_leaves_user_idTousers                                      leaves[]                  @relation("leaves_user_idTousers")
+  notifications                                                     notifications[]
+  sections                                                          sections[]
+  staff_attendance                                                  staff_attendance[]
+  staff_schedules_staff_schedules_created_byTousers                 staff_schedules[]         @relation("staff_schedules_created_byTousers")
+  staff_schedules_staff_schedules_user_idTousers                    staff_schedules[]         @relation("staff_schedules_user_idTousers")
+  student_edit_requests_student_edit_requests_reviewed_byTousers    student_edit_requests[]   @relation("student_edit_requests_reviewed_byTousers")
+  student_edit_requests_student_edit_requests_requested_byTousers   student_edit_requests[]   @relation("student_edit_requests_requested_byTousers")
+  student_promotions                                                student_promotions[]
+  timetable_entries_timetable_entries_created_byTousers             timetable_entries[]       @relation("timetable_entries_created_byTousers")
+  timetable_entries_timetable_entries_teacher_user_idTousers        timetable_entries[]       @relation("timetable_entries_teacher_user_idTousers")
+  timetable_entries_timetable_entries_teacher_user_id2Tousers       timetable_entries[]       @relation("timetable_entries_teacher_user_id2Tousers")
+  pickup_points                                                     PickupPoint?              @relation(fields: [geofence_pickup_id], references: [id], onUpdate: Restrict, map: "fk_user_geofence")
+  users                                                             User?                     @relation("usersTousers", fields: [reporting_user_id], references: [id], onUpdate: Restrict, map: "fk_user_reports_to")
+  other_users                                                       User[]                    @relation("usersTousers")
+  role                                                              Role?                     @relation(fields: [roleId], references: [id], onUpdate: Restrict, map: "fk_user_role")
+  voucher_approvers                                                 voucher_approvers[]
+  voucher_attachments                                               voucher_attachments[]
+  vouchers_vouchers_created_byTousers                               vouchers[]                @relation("vouchers_created_byTousers")
+  vouchers_vouchers_paid_byTousers                                  vouchers[]                @relation("vouchers_paid_byTousers")
+  vouchers_vouchers_rejected_byTousers                              vouchers[]                @relation("vouchers_rejected_byTousers")
+  vouchers_vouchers_salary_user_idTousers                           vouchers[]                @relation("vouchers_salary_user_idTousers")
+
+  @@index([roleId], map: "idx_role")
+  @@index([status], map: "idx_status")
+  @@index([geofence_pickup_id], map: "idx_geofence")
+  @@index([reporting_user_id], map: "idx_reports_to")
+  @@map("users")
+}
+
+model Role {
+  id              Int              @id @default(autoincrement()) @db.UnsignedInt
+  slug            String           @unique(map: "uniq_role_slug") @db.VarChar(40)
+  name            String           @db.VarChar(80)
+  description     String?          @db.VarChar(255)
+  isSystem        Boolean          @default(false) @map("is_system")
+  createdAt       DateTime?        @default(now()) @map("created_at") @db.Timestamp(0)
+  rolePermissions RolePermission[]
+  users           User[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id              Int              @id @default(autoincrement()) @db.UnsignedInt
+  permKey         String           @unique(map: "uniq_perm_key") @map("perm_key") @db.VarChar(60)
+  label           String           @db.VarChar(120)
+  module          String           @db.VarChar(40)
+  sortOrder       Int              @default(0) @map("sort_order") @db.UnsignedInt
+  rolePermissions RolePermission[]
+
+  @@index([module], map: "idx_module")
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int        @map("role_id") @db.UnsignedInt
+  permissionId Int        @map("permission_id") @db.UnsignedInt
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_rp_perm")
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_rp_role")
+
+  @@id([roleId, permissionId])
+  @@index([permissionId], map: "fk_rp_perm")
+  @@map("role_permissions")
+}
+
+model admission_enquiries {
+  id                                           Int                        @id @default(autoincrement()) @db.UnsignedInt
+  child_name                                   String                     @db.VarChar(120)
+  parent_name                                  String?                    @db.VarChar(120)
+  phone                                        String                     @db.VarChar(20)
+  email                                        String?                    @db.VarChar(160)
+  class_seeking                                String?                    @db.VarChar(16)
+  source                                       admission_enquiries_source @default(walk_in)
+  source_detail                                String?                    @db.VarChar(160)
+  status                                       admission_enquiries_status @default(new)
+  follow_up_date                               DateTime?                  @db.Date
+  assigned_to                                  Int?                       @db.UnsignedInt
+  city                                         String?                    @db.VarChar(80)
+  notes                                        String?                    @db.Text
+  lost_reason                                  String?                    @db.VarChar(160)
+  converted_sr_number                          Int?                       @db.UnsignedInt
+  created_by                                   Int?                       @db.UnsignedInt
+  created_at                                   DateTime?                  @default(now()) @db.Timestamp(0)
+  updated_at                                   DateTime?                  @default(now()) @db.Timestamp(0)
+  users_admission_enquiries_assigned_toTousers User?                      @relation("admission_enquiries_assigned_toTousers", fields: [assigned_to], references: [id], onUpdate: Restrict, map: "fk_enq_assignee")
+  users_admission_enquiries_created_byTousers  User?                      @relation("admission_enquiries_created_byTousers", fields: [created_by], references: [id], onUpdate: Restrict, map: "fk_enq_creator")
+  admission_followups                          admission_followups[]
+
+  @@index([created_by], map: "fk_enq_creator")
+  @@index([assigned_to], map: "idx_assigned")
+  @@index([follow_up_date], map: "idx_followup")
+  @@index([status], map: "idx_status")
+}
+
+model admission_followups {
+  id                  Int                 @id @default(autoincrement()) @db.UnsignedInt
+  enquiry_id          Int                 @db.UnsignedInt
+  note                String?             @db.Text
+  status_to           String?             @db.VarChar(20)
+  next_follow_up      DateTime?           @db.Date
+  created_by          Int?                @db.UnsignedInt
+  created_at          DateTime?           @default(now()) @db.Timestamp(0)
+  users               User?               @relation(fields: [created_by], references: [id], onUpdate: Restrict, map: "fk_fu_creator")
+  admission_enquiries admission_enquiries @relation(fields: [enquiry_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_fu_enq")
+
+  @@index([created_by], map: "fk_fu_creator")
+  @@index([enquiry_id], map: "idx_enq")
+}
+
+model app_settings {
+  setting_key   String    @id @db.VarChar(80)
+  setting_value String?   @db.Text
+  updated_by    Int?      @db.UnsignedInt
+  updated_at    DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model attendance {
+  id              Int               @id @default(autoincrement()) @db.UnsignedInt
+  sr_number       Int               @db.UnsignedInt
+  session_code    String            @db.VarChar(10)
+  attendance_date DateTime          @db.Date
+  status          attendance_status @default(present)
+  remarks         String?           @db.VarChar(255)
+  marked_by       String?           @db.VarChar(64)
+  marked_at       DateTime?         @default(now()) @db.Timestamp(0)
+  created_at      DateTime?         @default(now()) @db.Timestamp(0)
+  sessions        Session           @relation(fields: [session_code], references: [code], onUpdate: Restrict, map: "fk_attn_session")
+  students        Student           @relation(fields: [sr_number], references: [srNumber], onDelete: Cascade, onUpdate: Restrict, map: "fk_attn_student")
+
+  @@unique([sr_number, attendance_date], map: "uniq_sr_date")
+  @@index([attendance_date], map: "idx_date")
+  @@index([session_code, attendance_date], map: "idx_session_date")
+  @@index([status], map: "idx_status")
+}
+
+model brand_images {
+  id               Int      @id @default(autoincrement()) @db.UnsignedInt
+  prompt_set_id    Int?     @db.UnsignedInt
+  slide_no         Int      @default(1) @db.UnsignedInt
+  prompt           String   @db.MediumText
+  provider         String   @default("ideogram") @db.VarChar(20)
+  model            String?  @db.VarChar(40)
+  aspect_ratio     String?  @db.VarChar(20)
+  resolution       String?  @db.VarChar(20)
+  seed             BigInt?
+  image_path       String?  @db.VarChar(255)
+  image_url_remote String?  @db.VarChar(512)
+  is_safe          Boolean  @default(true)
+  status           String   @default("done") @db.VarChar(10)
+  error            String?  @db.VarChar(255)
+  created_by       Int?     @db.UnsignedInt
+  created_at       DateTime @default(now()) @db.Timestamp(0)
+
+  @@index([created_at], map: "idx_created")
+  @@index([prompt_set_id, slide_no], map: "idx_set")
+}
+
+model brand_prompt_sets {
+  id            Int      @id @default(autoincrement()) @db.UnsignedInt
+  feature_key   String   @db.VarChar(40)
+  feature_label String   @db.VarChar(120)
+  format        String   @db.VarChar(20)
+  tone          String   @db.VarChar(20)
+  audience      String   @db.VarChar(20)
+  color_theme   String?  @db.Text
+  headline      String?  @db.VarChar(180)
+  slides_json   String   @db.MediumText
+  extras        String?  @db.Text
+  created_by    Int?     @db.UnsignedInt
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+
+  @@index([created_at], map: "idx_created")
+  @@index([feature_key], map: "idx_feature")
+}
+
+model class_diary {
+  id                                       Int                @id @default(autoincrement()) @db.UnsignedInt
+  session_code                             String             @db.VarChar(10)
+  class_slug                               String             @db.VarChar(16)
+  section_code                             String             @db.VarChar(8)
+  diary_date                               DateTime           @db.Date
+  period_id                                Int?               @db.UnsignedInt
+  subject_id                               Int?               @db.UnsignedInt
+  teacher_user_id                          Int?               @db.UnsignedInt
+  topic                                    String             @db.VarChar(600)
+  homework                                 String?            @db.VarChar(1200)
+  created_by                               Int?               @db.UnsignedInt
+  created_at                               DateTime?          @default(now()) @db.Timestamp(0)
+  updated_at                               DateTime?          @default(now()) @db.Timestamp(0)
+  users_class_diary_created_byTousers      User?              @relation("class_diary_created_byTousers", fields: [created_by], references: [id], onUpdate: Restrict, map: "fk_cd_creator")
+  timetable_periods                        timetable_periods? @relation(fields: [period_id], references: [id], onUpdate: Restrict, map: "fk_cd_period")
+  exam_subjects                            exam_subjects?     @relation(fields: [subject_id], references: [id], onUpdate: Restrict, map: "fk_cd_subject")
+  users_class_diary_teacher_user_idTousers User?              @relation("class_diary_teacher_user_idTousers", fields: [teacher_user_id], references: [id], onUpdate: Restrict, map: "fk_cd_teacher")
+
+  @@unique([session_code, class_slug, section_code, diary_date, period_id], map: "uniq_slot")
+  @@index([created_by], map: "fk_cd_creator")
+  @@index([period_id], map: "fk_cd_period")
+  @@index([subject_id], map: "fk_cd_subject")
+  @@index([session_code, class_slug, section_code, diary_date], map: "idx_section_date")
+  @@index([teacher_user_id, diary_date], map: "idx_teacher_date")
+}
+
+model class_section_summary {
+  class          String @db.VarChar(16)
+  section        String @db.VarChar(8)
+  total_students Int    @default(0) @db.UnsignedInt
+
+  @@id([class, section])
+}
+
+model classes {
+  id         Int        @id @default(autoincrement()) @db.UnsignedInt
+  slug       String     @unique(map: "uniq_class_slug") @db.VarChar(16)
+  name       String     @db.VarChar(40)
+  sort_order Int        @default(0) @db.UnsignedInt
+  is_system  Boolean    @default(false)
+  created_at DateTime?  @default(now()) @db.Timestamp(0)
+  sections   sections[]
+
+  @@index([sort_order], map: "idx_sort")
+}
+
+model dashboard_reviews {
+  id           Int       @id @default(autoincrement()) @db.UnsignedInt
+  user_id      Int       @db.UnsignedInt
+  review_date  DateTime  @db.Date
+  review_key   String    @db.VarChar(60)
+  review_label String?   @db.VarChar(120)
+  reviewed_at  DateTime? @default(now()) @db.Timestamp(0)
+  users        User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_dr_user")
+
+  @@unique([user_id, review_date, review_key], map: "uniq_user_date_key")
+  @@index([review_date], map: "idx_review_date")
+  @@index([user_id, review_date], map: "idx_user_date")
+}
+
+model discounts {
+  id         Int     @id @default(autoincrement()) @db.UnsignedInt
+  category   String  @db.VarChar(120)
+  discount   String? @db.VarChar(120)
+  conditions String? @db.Text
+}
+
+model exam_class_subjects {
+  id            Int           @id @default(autoincrement()) @db.UnsignedInt
+  class_slug    String        @db.VarChar(16)
+  subject_id    Int           @db.UnsignedInt
+  sort_order    Int           @default(0) @db.UnsignedInt
+  exam_subjects exam_subjects @relation(fields: [subject_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_ecs_subj")
+
+  @@unique([class_slug, subject_id], map: "uniq_class_subject")
+  @@index([subject_id], map: "fk_ecs_subj")
+  @@index([class_slug], map: "idx_class")
+}
+
+model exam_co_areas {
+  id             Int              @id @default(autoincrement()) @db.UnsignedInt
+  slug           String           @unique(map: "uniq_co_slug") @db.VarChar(40)
+  name           String           @db.VarChar(80)
+  description    String?          @db.VarChar(200)
+  sort_order     Int              @default(0) @db.UnsignedInt
+  exam_co_grades exam_co_grades[]
+}
+
+model exam_co_grades {
+  id            Int                  @id @default(autoincrement()) @db.UnsignedInt
+  term_id       Int                  @db.UnsignedInt
+  sr_number     Int                  @db.UnsignedInt
+  area_id       Int                  @db.UnsignedInt
+  grade         exam_co_grades_grade @default(A)
+  remarks       String?              @db.VarChar(255)
+  marked_by     Int?                 @db.UnsignedInt
+  marked_at     DateTime?            @default(now()) @db.Timestamp(0)
+  exam_co_areas exam_co_areas        @relation(fields: [area_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_eco_area")
+  users         User?                @relation(fields: [marked_by], references: [id], onUpdate: Restrict, map: "fk_eco_by")
+  students      Student              @relation(fields: [sr_number], references: [srNumber], onDelete: Cascade, onUpdate: Restrict, map: "fk_eco_sr")
+  exam_terms    exam_terms           @relation(fields: [term_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_eco_term")
+
+  @@unique([term_id, sr_number, area_id], map: "uniq_term_sr_area")
+  @@index([area_id], map: "fk_eco_area")
+  @@index([marked_by], map: "fk_eco_by")
+  @@index([sr_number], map: "idx_sr")
+}
+
+model exam_datesheet {
+  id            Int           @id @default(autoincrement()) @db.UnsignedInt
+  term_id       Int           @db.UnsignedInt
+  class_slug    String        @db.VarChar(16)
+  subject_id    Int           @db.UnsignedInt
+  exam_date     DateTime      @db.Date
+  start_time    DateTime?     @db.Time(0)
+  end_time      DateTime?     @db.Time(0)
+  max_marks     Int           @default(100) @db.UnsignedInt
+  pass_marks    Int           @default(33) @db.UnsignedInt
+  syllabus_text String?       @db.VarChar(500)
+  created_at    DateTime?     @default(now()) @db.Timestamp(0)
+  exam_subjects exam_subjects @relation(fields: [subject_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_eds_subj")
+  exam_terms    exam_terms    @relation(fields: [term_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_eds_term")
+
+  @@unique([term_id, class_slug, subject_id], map: "uniq_term_class_subj")
+  @@index([subject_id], map: "fk_eds_subj")
+  @@index([exam_date], map: "idx_date")
+  @@index([term_id, class_slug], map: "idx_term_class")
+}
+
+model exam_marks {
+  id             Int           @id @default(autoincrement()) @db.UnsignedInt
+  term_id        Int           @db.UnsignedInt
+  sr_number      Int           @db.UnsignedInt
+  subject_id     Int           @db.UnsignedInt
+  marks_obtained Decimal?      @db.Decimal(6, 2)
+  is_absent      Boolean       @default(false)
+  remarks        String?       @db.VarChar(255)
+  marked_by      Int?          @db.UnsignedInt
+  marked_at      DateTime?     @default(now()) @db.Timestamp(0)
+  users          User?         @relation(fields: [marked_by], references: [id], onUpdate: Restrict, map: "fk_em_by")
+  students       Student       @relation(fields: [sr_number], references: [srNumber], onDelete: Cascade, onUpdate: Restrict, map: "fk_em_sr")
+  exam_subjects  exam_subjects @relation(fields: [subject_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_em_subj")
+  exam_terms     exam_terms    @relation(fields: [term_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_em_term")
+
+  @@unique([term_id, sr_number, subject_id], map: "uniq_term_sr_subj")
+  @@index([marked_by], map: "fk_em_by")
+  @@index([subject_id], map: "fk_em_subj")
+  @@index([sr_number], map: "idx_sr")
+  @@index([term_id, subject_id], map: "idx_term_subj")
+}
+
+model exam_subjects {
+  id                                                             Int                   @id @default(autoincrement()) @db.UnsignedInt
+  slug                                                           String                @unique(map: "uniq_subject_slug") @db.VarChar(40)
+  name                                                           String                @db.VarChar(80)
+  short_code                                                     String                @db.VarChar(8)
+  is_language                                                    Boolean               @default(false)
+  sort_order                                                     Int                   @default(0) @db.UnsignedInt
+  class_diary                                                    class_diary[]
+  exam_class_subjects                                            exam_class_subjects[]
+  exam_datesheet                                                 exam_datesheet[]
+  exam_marks                                                     exam_marks[]
+  stream_subjects                                                stream_subjects[]
+  timetable_entries_timetable_entries_subject_idToexam_subjects  timetable_entries[]   @relation("timetable_entries_subject_idToexam_subjects")
+  timetable_entries_timetable_entries_subject_id2Toexam_subjects timetable_entries[]   @relation("timetable_entries_subject_id2Toexam_subjects")
+}
+
+model exam_terms {
+  id                Int              @id @default(autoincrement()) @db.UnsignedInt
+  session_code      String           @db.VarChar(10)
+  slug              String           @db.VarChar(40)
+  name              String           @db.VarChar(80)
+  short_code        String           @db.VarChar(8)
+  weight_percent    Decimal          @default(0.00) @db.Decimal(5, 2)
+  default_max_marks Int              @default(100) @db.UnsignedInt
+  sort_order        Int              @default(0) @db.UnsignedInt
+  is_finalized      Boolean          @default(false)
+  created_at        DateTime?        @default(now()) @db.Timestamp(0)
+  exam_co_grades    exam_co_grades[]
+  exam_datesheet    exam_datesheet[]
+  exam_marks        exam_marks[]
+
+  @@unique([session_code, slug], map: "uniq_session_slug")
+  @@index([session_code], map: "idx_session")
+}
+
+model feature_purchases {
+  id              Int                      @id @default(autoincrement()) @db.UnsignedInt
+  school_id       Int                      @db.UnsignedInt
+  feature_key     String                   @db.VarChar(40)
+  amount          Int                      @default(0) @db.UnsignedInt
+  currency        String                   @default("INR") @db.VarChar(8)
+  gateway         String                   @default("razorpay") @db.VarChar(20)
+  order_id        String?                  @db.VarChar(64)
+  payment_id      String?                  @db.VarChar(64)
+  status          feature_purchases_status @default(created)
+  invoice_no      String?                  @unique(map: "uniq_invoice_no") @db.VarChar(40)
+  gst_rate        Int                      @default(18) @db.UnsignedTinyInt
+  gst_amount      Int                      @default(0) @db.UnsignedInt
+  total_amount    Int                      @default(0) @db.UnsignedInt
+  billing_name    String?                  @db.VarChar(120)
+  billing_address String?                  @db.VarChar(255)
+  billing_gstin   String?                  @db.VarChar(20)
+  created_at      DateTime?                @default(now()) @db.Timestamp(0)
+  paid_at         DateTime?                @db.Timestamp(0)
+
+  @@index([order_id], map: "idx_order")
+  @@index([school_id], map: "idx_school")
+  @@index([status], map: "idx_status")
+}
+
+model fee_payment_attempts {
+  id                Int                         @id @default(autoincrement()) @db.UnsignedInt
+  order_id          String                      @unique(map: "order_id") @db.VarChar(40)
+  sr_number         Int
+  session_code      String                      @db.VarChar(20)
+  amount            Int                         @db.UnsignedInt
+  currency          String                      @default("INR") @db.VarChar(3)
+  provider          String                      @default("hdfc_smartgateway") @db.VarChar(20)
+  environment       String                      @default("production") @db.VarChar(10)
+  status            fee_payment_attempts_status @default(created)
+  gateway_txn_id    String?                     @db.VarChar(80)
+  gateway_order_ref String?                     @db.VarChar(80)
+  payment_method    String?                     @db.VarChar(40)
+  raw_request       String?                     @db.MediumText
+  raw_response      String?                     @db.MediumText
+  error_code        String?                     @db.VarChar(80)
+  error_message     String?                     @db.VarChar(255)
+  initiated_by      String?                     @db.VarChar(40)
+  ip                String?                     @db.VarChar(45)
+  user_agent        String?                     @db.VarChar(255)
+  receipt_no        String?                     @db.VarChar(40)
+  fee_payment_id    Int?                        @db.UnsignedInt
+  created_at        DateTime                    @default(now()) @db.Timestamp(0)
+  completed_at      DateTime?                   @db.Timestamp(0)
+
+  @@index([created_at], map: "idx_created")
+  @@index([gateway_txn_id], map: "idx_gateway")
+  @@index([sr_number, session_code], map: "idx_sr")
+  @@index([status], map: "idx_status")
+}
+
+model fee_payments {
+  id            Int                 @id @default(autoincrement()) @db.UnsignedInt
+  sr_number     Int                 @db.UnsignedInt
+  session_code  String              @db.VarChar(10)
+  receipt_no    String              @unique(map: "uniq_receipt") @db.VarChar(32)
+  amount        Int                 @db.UnsignedInt
+  paid_on       DateTime            @db.Date
+  method        fee_payments_method @default(cash)
+  reference     String?             @db.VarChar(64)
+  notes         String?             @db.VarChar(255)
+  recorded_by   String?             @db.VarChar(64)
+  is_voided     Boolean             @default(false)
+  voided_at     DateTime?           @db.Timestamp(0)
+  voided_reason String?             @db.VarChar(255)
+  created_at    DateTime?           @default(now()) @db.Timestamp(0)
+  sessions      Session             @relation(fields: [session_code], references: [code], onUpdate: Restrict, map: "fk_payments_session")
+  students      Student             @relation(fields: [sr_number], references: [srNumber], onDelete: Cascade, onUpdate: Restrict, map: "fk_payments_student")
+
+  @@index([session_code], map: "fk_payments_session")
+  @@index([method], map: "idx_method")
+  @@index([paid_on], map: "idx_paid_on")
+  @@index([sr_number, session_code], map: "idx_student_session")
+}
+
+model fee_structure {
+  class             String @id @db.VarChar(16)
+  tuition_yearly    Int    @default(0) @db.UnsignedInt
+  annual_charges    Int    @default(0) @db.UnsignedInt
+  activity_fee      Int    @default(0) @db.UnsignedInt
+  exam_fee          Int    @default(0) @db.UnsignedInt
+  books_uniform_est Int    @default(0) @db.UnsignedInt
+}
+
+model holidays {
+  id           Int           @id @default(autoincrement()) @db.UnsignedInt
+  holiday_date DateTime      @unique(map: "uniq_holiday_date") @db.Date
+  name         String        @db.VarChar(120)
+  type         holidays_type @default(public)
+  is_paid      Boolean       @default(true)
+  notes        String?       @db.VarChar(255)
+  created_by   Int?          @db.UnsignedInt
+  created_at   DateTime?     @default(now()) @db.Timestamp(0)
+  users        User?         @relation(fields: [created_by], references: [id], onUpdate: Restrict, map: "fk_hol_by")
+
+  @@index([created_by], map: "fk_hol_by")
+  @@index([holiday_date], map: "idx_year")
+}
+
+model hostel_allocations {
+  id             Int          @id @default(autoincrement()) @db.UnsignedInt
+  sr_number      Int          @db.UnsignedInt
+  room_no        String       @db.VarChar(16)
+  allocated_from DateTime?    @db.Date
+  vacated_on     DateTime?    @db.Date
+  is_current     Boolean      @default(true)
+  notes          String?      @db.Text
+  created_at     DateTime?    @default(now()) @db.Timestamp(0)
+  updated_at     DateTime?    @default(now()) @db.Timestamp(0)
+  hostel_rooms   hostel_rooms @relation(fields: [room_no], references: [room_no], onUpdate: Restrict, map: "fk_alloc_room")
+  students       Student      @relation(fields: [sr_number], references: [srNumber], onDelete: Cascade, onUpdate: Restrict, map: "fk_alloc_sr")
+
+  @@unique([sr_number, is_current], map: "uk_active")
+  @@index([room_no], map: "room_no")
+}
+
+model hostel_rooms {
+  room_no            String                 @id @db.VarChar(16)
+  block              hostel_rooms_block
+  room_type          hostel_rooms_room_type
+  capacity           Int                    @db.UnsignedTinyInt
+  floor              String?                @db.VarChar(16)
+  created_at         DateTime?              @default(now()) @db.Timestamp(0)
+  hostel_allocations hostel_allocations[]
+
+  @@index([block, floor], map: "block")
+}
+
+model leave_balance_overrides {
+  id                                              Int         @id @default(autoincrement()) @db.UnsignedInt
+  user_id                                         Int         @db.UnsignedInt
+  leave_type_id                                   Int         @db.UnsignedInt
+  year                                            Int         @db.UnsignedSmallInt
+  delta_days                                      Decimal     @db.Decimal(5, 1)
+  reason                                          String?     @db.VarChar(200)
+  created_by                                      Int?        @db.UnsignedInt
+  created_at                                      DateTime?   @default(now()) @db.Timestamp(0)
+  users_leave_balance_overrides_created_byTousers User?       @relation("leave_balance_overrides_created_byTousers", fields: [created_by], references: [id], onUpdate: Restrict, map: "fk_lbo_by")
+  leave_types                                     leave_types @relation(fields: [leave_type_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_lbo_type")
+  users_leave_balance_overrides_user_idTousers    User        @relation("leave_balance_overrides_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_lbo_user")
+
+  @@index([created_by], map: "fk_lbo_by")
+  @@index([leave_type_id], map: "fk_lbo_type")
+  @@index([user_id, leave_type_id, year], map: "idx_uty")
+}
+
+model leave_types {
+  id                      Int                       @id @default(autoincrement()) @db.UnsignedInt
+  slug                    String                    @unique(map: "uniq_lt_slug") @db.VarChar(20)
+  name                    String                    @db.VarChar(60)
+  short_code              String                    @db.VarChar(4)
+  annual_quota            Decimal                   @default(0.0) @db.Decimal(5, 1)
+  is_paid                 Boolean                   @default(true)
+  carry_forward           Boolean                   @default(false)
+  is_system               Boolean                   @default(false)
+  color_hex               String?                   @db.VarChar(7)
+  sort_order              Int                       @default(0) @db.UnsignedInt
+  created_at              DateTime?                 @default(now()) @db.Timestamp(0)
+  leave_balance_overrides leave_balance_overrides[]
+  leaves                  leaves[]
+}
+
+model leaves {
+  id                             Int             @id @default(autoincrement()) @db.UnsignedInt
+  user_id                        Int             @db.UnsignedInt
+  leave_type_id                  Int             @db.UnsignedInt
+  from_date                      DateTime        @db.Date
+  to_date                        DateTime        @db.Date
+  half_day                       leaves_half_day @default(none)
+  days                           Decimal         @db.Decimal(5, 1)
+  reason                         String?         @db.VarChar(500)
+  attachment_path                String?         @db.VarChar(255)
+  status                         leaves_status   @default(pending)
+  applied_at                     DateTime?       @default(now()) @db.Timestamp(0)
+  decided_by                     Int?            @db.UnsignedInt
+  decided_at                     DateTime?       @db.Timestamp(0)
+  decision_note                  String?         @db.VarChar(500)
+  users_leaves_decided_byTousers User?           @relation("leaves_decided_byTousers", fields: [decided_by], references: [id], onUpdate: Restrict, map: "fk_lv_decider")
+  leave_types                    leave_types     @relation(fields: [leave_type_id], references: [id], onUpdate: Restrict, map: "fk_lv_type")
+  users_leaves_user_idTousers    User            @relation("leaves_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_lv_user")
+
+  @@index([decided_by], map: "fk_lv_decider")
+  @@index([leave_type_id], map: "fk_lv_type")
+  @@index([from_date, to_date], map: "idx_dates")
+  @@index([status], map: "idx_status")
+  @@index([user_id, from_date, to_date], map: "idx_user_dates")
+}
+
+model marketing_leads {
+  id         Int                    @id @default(autoincrement()) @db.UnsignedInt
+  created_at DateTime               @db.DateTime(0)
+  name       String                 @db.VarChar(160)
+  school     String                 @db.VarChar(200)
+  phone      String                 @db.VarChar(16)
+  role       String?                @db.VarChar(80)
+  ip         String?                @db.VarChar(64)
+  user_agent String?                @db.VarChar(255)
+  referrer   String?                @db.VarChar(255)
+  status     marketing_leads_status @default(new)
+  notes      String?                @db.Text
+
+  @@index([created_at], map: "idx_created")
+  @@index([phone], map: "idx_phone")
+}
+
+model notifications {
+  id         Int       @id @default(autoincrement()) @db.UnsignedInt
+  user_id    Int       @db.UnsignedInt
+  type       String    @db.VarChar(60)
+  title      String    @db.VarChar(200)
+  body       String?   @db.VarChar(500)
+  link_url   String?   @db.VarChar(255)
+  read_at    DateTime? @db.Timestamp(0)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  users      User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_notif_user")
+
+  @@index([created_at], map: "idx_created")
+  @@index([user_id, read_at], map: "idx_user_read")
+}
+
+model one_time_fees {
+  class            String @id @db.VarChar(16)
+  registration_fee Int    @default(0) @db.UnsignedInt
+  admission_fee    Int    @default(0) @db.UnsignedInt
+  caution_money    Int    @default(0) @db.UnsignedInt
+}
+
+model platform_features {
+  feature_key   String  @id @db.VarChar(40)
+  label         String  @db.VarChar(80)
+  description   String? @db.VarChar(255)
+  benefit       String? @db.Text
+  category      String  @default("General") @db.VarChar(40)
+  monthly_price Int     @default(0) @db.UnsignedInt
+  is_core       Boolean @default(false)
+  sort_order    Int     @default(0)
+}
+
+model schema_migrations {
+  name       String   @id
+  applied_at DateTime @default(now()) @db.Timestamp(0)
+}
+
+model school_features {
+  school_id   Int     @db.UnsignedInt
+  feature_key String  @db.VarChar(40)
+  enabled     Boolean @default(true)
+
+  @@id([school_id, feature_key])
+  @@index([school_id], map: "idx_school")
+}
+
+model sections {
+  id              Int       @id @default(autoincrement()) @db.UnsignedInt
+  class_id        Int       @db.UnsignedInt
+  code            String    @db.VarChar(8)
+  capacity        Int?      @db.UnsignedInt
+  teacher_user_id Int?      @db.UnsignedInt
+  created_at      DateTime? @default(now()) @db.Timestamp(0)
+  classes         classes   @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_section_class")
+  users           User?     @relation(fields: [teacher_user_id], references: [id], onUpdate: Restrict, map: "fk_section_teacher")
+
+  @@unique([class_id, code], map: "uniq_class_section")
+  @@index([teacher_user_id], map: "idx_teacher")
+}
+
+model staff_attendance {
+  id                 Int                            @id @default(autoincrement()) @db.UnsignedInt
+  user_id            Int                            @db.UnsignedInt
+  punch_type         staff_attendance_punch_type
+  punched_at         DateTime                       @default(now()) @db.Timestamp(0)
+  latitude           Decimal                        @db.Decimal(10, 7)
+  longitude          Decimal                        @db.Decimal(10, 7)
+  accuracy_m         Int?                           @db.UnsignedInt
+  distance_m         Int?                           @db.UnsignedInt
+  geofence_type      staff_attendance_geofence_type
+  geofence_pickup_id Int?                           @db.UnsignedInt
+  is_outside         Boolean                        @default(false)
+  selfie_path        String?                        @db.VarChar(255)
+  notes              String?                        @db.VarChar(255)
+  user_agent         String?                        @db.VarChar(255)
+  ip_address         String?                        @db.VarChar(45)
+  created_at         DateTime?                      @default(now()) @db.Timestamp(0)
+  pickup_points      PickupPoint?                   @relation(fields: [geofence_pickup_id], references: [id], onUpdate: Restrict, map: "fk_sa_pickup")
+  users              User                           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_sa_user")
+
+  @@index([geofence_pickup_id], map: "fk_sa_pickup")
+  @@index([punched_at], map: "idx_date")
+  @@index([is_outside], map: "idx_outside")
+  @@index([punch_type], map: "idx_type")
+  @@index([user_id, punched_at], map: "idx_user_date")
+}
+
+model staff_schedules {
+  id                                      Int       @id @default(autoincrement()) @db.UnsignedInt
+  user_id                                 Int       @db.UnsignedInt
+  effective_from                          DateTime  @db.Date
+  duty_start                              DateTime  @db.Time(0)
+  duty_end                                DateTime  @db.Time(0)
+  notes                                   String?   @db.VarChar(160)
+  created_by                              Int?      @db.UnsignedInt
+  created_at                              DateTime? @default(now()) @db.Timestamp(0)
+  users_staff_schedules_created_byTousers User?     @relation("staff_schedules_created_byTousers", fields: [created_by], references: [id], onUpdate: Restrict, map: "fk_ssched_creator")
+  users_staff_schedules_user_idTousers    User      @relation("staff_schedules_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_ssched_user")
+
+  @@index([created_by], map: "fk_ssched_creator")
+  @@index([user_id, effective_from], map: "idx_user_eff")
+}
+
+model stream_subjects {
+  id            Int           @id @default(autoincrement()) @db.UnsignedInt
+  stream        String        @db.VarChar(16)
+  subject_id    Int           @db.UnsignedInt
+  is_optional   Boolean       @default(false)
+  sort_order    Int           @default(0) @db.UnsignedInt
+  exam_subjects exam_subjects @relation(fields: [subject_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_ss_subject")
+
+  @@unique([stream, subject_id], map: "uniq_stream_subject")
+  @@index([subject_id], map: "fk_ss_subject")
+  @@index([stream], map: "idx_stream")
+}
+
+model student_edit_request_fields {
+  id                    Int                                      @id @default(autoincrement()) @db.UnsignedInt
+  request_id            Int                                      @db.UnsignedInt
+  field_name            String                                   @db.VarChar(60)
+  old_value             String?                                  @db.Text
+  new_value             String?                                  @db.Text
+  field_status          student_edit_request_fields_field_status @default(pending)
+  rejection_reason      String?                                  @db.Text
+  reviewed_at           DateTime?                                @db.Timestamp(0)
+  student_edit_requests student_edit_requests                    @relation(fields: [request_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_seqf_req")
+
+  @@index([request_id], map: "idx_req")
+  @@index([field_status], map: "idx_status")
+}
+
+model student_edit_requests {
+  id                                              Int                           @id @default(autoincrement()) @db.UnsignedInt
+  sr_number                                       Int                           @db.UnsignedInt
+  requested_by                                    Int                           @db.UnsignedInt
+  requested_at                                    DateTime                      @default(now()) @db.Timestamp(0)
+  status                                          student_edit_requests_status  @default(pending)
+  reviewed_by                                     Int?                          @db.UnsignedInt
+  reviewed_at                                     DateTime?                     @db.Timestamp(0)
+  note                                            String?                       @db.Text
+  review_note                                     String?                       @db.Text
+  student_edit_request_fields                     student_edit_request_fields[]
+  users_student_edit_requests_reviewed_byTousers  User?                         @relation("student_edit_requests_reviewed_byTousers", fields: [reviewed_by], references: [id], onUpdate: Restrict, map: "fk_sereq_reviewer")
+  students                                        Student                       @relation(fields: [sr_number], references: [srNumber], onDelete: Cascade, onUpdate: Restrict, map: "fk_sereq_student")
+  users_student_edit_requests_requested_byTousers User                          @relation("student_edit_requests_requested_byTousers", fields: [requested_by], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_sereq_user")
+
+  @@index([reviewed_by], map: "fk_sereq_reviewer")
+  @@index([requested_by], map: "idx_requester")
+  @@index([sr_number], map: "idx_sr")
+  @@index([status], map: "idx_status")
+}
+
+model student_promotions {
+  id                   Int                       @id @default(autoincrement()) @db.UnsignedInt
+  from_session         String                    @db.VarChar(10)
+  to_session           String                    @db.VarChar(10)
+  sr_number            Int                       @db.UnsignedInt
+  from_class           String?                   @db.VarChar(16)
+  from_section         String?                   @db.VarChar(8)
+  to_class             String?                   @db.VarChar(16)
+  to_section           String?                   @db.VarChar(8)
+  action               student_promotions_action @default(promoted)
+  outstanding_at_promo Int                       @default(0)
+  promoted_by          Int?                      @db.UnsignedInt
+  promoted_at          DateTime?                 @default(now()) @db.Timestamp(0)
+  users                User?                     @relation(fields: [promoted_by], references: [id], onUpdate: Restrict, map: "fk_sp_creator")
+
+  @@unique([sr_number, to_session], map: "uniq_sr_to")
+  @@index([promoted_by], map: "fk_sp_creator")
+  @@index([from_session], map: "idx_from_session")
+  @@index([sr_number], map: "idx_sr")
+  @@index([to_session], map: "idx_to_session")
+}
+
+model timetable_entries {
+  id                                                         Int               @id @default(autoincrement()) @db.UnsignedInt
+  session_code                                               String            @db.VarChar(10)
+  class_slug                                                 String            @db.VarChar(16)
+  section_code                                               String            @db.VarChar(8)
+  day_of_week                                                Int               @db.TinyInt
+  period_id                                                  Int               @db.UnsignedInt
+  subject_id                                                 Int?              @db.UnsignedInt
+  teacher_user_id                                            Int?              @db.UnsignedInt
+  subject_id2                                                Int?              @db.UnsignedInt
+  teacher_user_id2                                           Int?              @db.UnsignedInt
+  room                                                       String?           @db.VarChar(40)
+  notes                                                      String?           @db.VarChar(120)
+  created_by                                                 Int?              @db.UnsignedInt
+  updated_at                                                 DateTime?         @default(now()) @db.Timestamp(0)
+  users_timetable_entries_created_byTousers                  User?             @relation("timetable_entries_created_byTousers", fields: [created_by], references: [id], onUpdate: Restrict, map: "fk_tte_creator")
+  timetable_periods                                          timetable_periods @relation(fields: [period_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_tte_period")
+  exam_subjects_timetable_entries_subject_idToexam_subjects  exam_subjects?    @relation("timetable_entries_subject_idToexam_subjects", fields: [subject_id], references: [id], onUpdate: Restrict, map: "fk_tte_subject")
+  exam_subjects_timetable_entries_subject_id2Toexam_subjects exam_subjects?    @relation("timetable_entries_subject_id2Toexam_subjects", fields: [subject_id2], references: [id], onUpdate: Restrict, map: "fk_tte_subject2")
+  users_timetable_entries_teacher_user_idTousers             User?             @relation("timetable_entries_teacher_user_idTousers", fields: [teacher_user_id], references: [id], onUpdate: Restrict, map: "fk_tte_teacher")
+  users_timetable_entries_teacher_user_id2Tousers            User?             @relation("timetable_entries_teacher_user_id2Tousers", fields: [teacher_user_id2], references: [id], onUpdate: Restrict, map: "fk_tte_teacher2")
+
+  @@unique([session_code, class_slug, section_code, day_of_week, period_id], map: "uniq_cell")
+  @@index([created_by], map: "fk_tte_creator")
+  @@index([period_id], map: "fk_tte_period")
+  @@index([subject_id], map: "fk_tte_subject")
+  @@index([subject_id2], map: "fk_tte_subject2")
+  @@index([teacher_user_id], map: "fk_tte_teacher")
+  @@index([teacher_user_id2], map: "fk_tte_teacher2")
+  @@index([session_code, class_slug, section_code], map: "idx_section")
+  @@index([session_code, teacher_user_id2, day_of_week, period_id], map: "idx_teacher2_slot")
+  @@index([session_code, teacher_user_id, day_of_week, period_id], map: "idx_teacher_slot")
+}
+
+model timetable_periods {
+  id                Int                 @id @default(autoincrement()) @db.UnsignedInt
+  session_code      String              @db.VarChar(10)
+  period_no         Int                 @db.UnsignedInt
+  name              String              @db.VarChar(40)
+  start_time        DateTime            @db.Time(0)
+  end_time          DateTime            @db.Time(0)
+  is_break          Boolean             @default(false)
+  sort_order        Int                 @default(0) @db.UnsignedInt
+  created_at        DateTime?           @default(now()) @db.Timestamp(0)
+  class_diary       class_diary[]
+  timetable_entries timetable_entries[]
+
+  @@unique([session_code, period_no], map: "uniq_session_period")
+  @@index([session_code, sort_order], map: "idx_session_sort")
+}
+
+model transport_slabs {
+  slab           String  @id @db.VarChar(16)
+  distance_range String  @db.VarChar(32)
+  min_km         Decimal @db.Decimal(4, 1)
+  max_km         Decimal @db.Decimal(4, 1)
+  yearly_fee     Int     @db.UnsignedInt
+  quarterly_fee  Int     @db.UnsignedInt
+  monthly_fee    Int     @db.UnsignedInt
+}
+
+model voucher_approvers {
+  id               Int                      @id @default(autoincrement()) @db.UnsignedInt
+  voucher_id       Int                      @db.UnsignedInt
+  approver_user_id Int                      @db.UnsignedInt
+  status           voucher_approvers_status @default(pending)
+  remarks          String?                  @db.VarChar(255)
+  action_at        DateTime?                @db.Timestamp(0)
+  created_at       DateTime?                @default(now()) @db.Timestamp(0)
+  users            User                     @relation(fields: [approver_user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_vap_user")
+  vouchers         vouchers                 @relation(fields: [voucher_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_vap_voucher")
+
+  @@unique([voucher_id, approver_user_id], map: "uniq_voucher_user")
+  @@index([approver_user_id, status], map: "idx_user_status")
+}
+
+model voucher_attachments {
+  id            Int       @id @default(autoincrement()) @db.UnsignedInt
+  voucher_id    Int       @db.UnsignedInt
+  file_path     String    @db.VarChar(255)
+  original_name String?   @db.VarChar(255)
+  mime_type     String?   @db.VarChar(80)
+  size_bytes    Int?      @db.UnsignedInt
+  uploaded_by   Int?      @db.UnsignedInt
+  uploaded_at   DateTime? @default(now()) @db.Timestamp(0)
+  users         User?     @relation(fields: [uploaded_by], references: [id], onUpdate: Restrict, map: "fk_va_uploader")
+  vouchers      vouchers  @relation(fields: [voucher_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_va_voucher")
+
+  @@index([uploaded_by], map: "fk_va_uploader")
+  @@index([voucher_id], map: "idx_voucher")
+}
+
+model vouchers {
+  id                                   Int                      @id @default(autoincrement()) @db.UnsignedInt
+  voucher_no                           String                   @unique(map: "uniq_voucher_no") @db.VarChar(32)
+  title                                String                   @db.VarChar(160)
+  description                          String?                  @db.Text
+  category                             String?                  @db.VarChar(60)
+  amount                               Int                      @db.UnsignedInt
+  vendor_name                          String?                  @db.VarChar(160)
+  vendor_contact                       String?                  @db.VarChar(40)
+  salary_user_id                       Int?                     @db.UnsignedInt
+  salary_month                         String?                  @db.Char(7)
+  voucher_date                         DateTime                 @db.Date
+  status                               vouchers_status          @default(pending_approval)
+  payment_status                       vouchers_payment_status  @default(unpaid)
+  is_credit_bill                       Boolean                  @default(false)
+  payment_method                       vouchers_payment_method?
+  payment_date                         DateTime?                @db.Date
+  payment_ref                          String?                  @db.VarChar(80)
+  notes                                String?                  @db.VarChar(500)
+  rejected_reason                      String?                  @db.VarChar(255)
+  created_by                           Int                      @db.UnsignedInt
+  approved_at                          DateTime?                @db.Timestamp(0)
+  rejected_by                          Int?                     @db.UnsignedInt
+  rejected_at                          DateTime?                @db.Timestamp(0)
+  paid_by                              Int?                     @db.UnsignedInt
+  paid_at                              DateTime?                @db.Timestamp(0)
+  created_at                           DateTime?                @default(now()) @db.Timestamp(0)
+  updated_at                           DateTime?                @default(now()) @db.Timestamp(0)
+  voucher_approvers                    voucher_approvers[]
+  voucher_attachments                  voucher_attachments[]
+  users_vouchers_created_byTousers     User                     @relation("vouchers_created_byTousers", fields: [created_by], references: [id], onUpdate: Restrict, map: "fk_v_creator")
+  users_vouchers_paid_byTousers        User?                    @relation("vouchers_paid_byTousers", fields: [paid_by], references: [id], onUpdate: Restrict, map: "fk_v_paid_by")
+  users_vouchers_rejected_byTousers    User?                    @relation("vouchers_rejected_byTousers", fields: [rejected_by], references: [id], onUpdate: Restrict, map: "fk_v_rejected_by")
+  users_vouchers_salary_user_idTousers User?                    @relation("vouchers_salary_user_idTousers", fields: [salary_user_id], references: [id], onUpdate: Restrict, map: "fk_v_salary_user")
+
+  @@index([paid_by], map: "fk_v_paid_by")
+  @@index([rejected_by], map: "fk_v_rejected_by")
+  @@index([created_by], map: "idx_creator")
+  @@index([voucher_date], map: "idx_date")
+  @@index([salary_user_id, salary_month], map: "idx_salary_attrib")
+  @@index([status, payment_status], map: "idx_status")
+}
+
+model wa_action_bindings {
+  action_key      String    @id @db.VarChar(80)
+  template_name   String    @db.VarChar(120)
+  template_lang   String    @default("en") @db.VarChar(20)
+  recipient_field String?   @db.VarChar(60)
+  variable_map    String?   @db.LongText
+  is_enabled      Boolean   @default(true)
+  updated_by      Int?      @db.UnsignedInt
+  updated_at      DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model wa_message_log {
+  id              Int                   @id @default(autoincrement()) @db.UnsignedInt
+  action_key      String?               @db.VarChar(80)
+  template_name   String?               @db.VarChar(120)
+  to_phone        String                @db.VarChar(32)
+  variables_json  String?               @db.Text
+  status          wa_message_log_status @default(queued)
+  meta_message_id String?               @db.VarChar(120)
+  error_message   String?               @db.Text
+  context_json    String?               @db.Text
+  created_at      DateTime?             @default(now()) @db.Timestamp(0)
+
+  @@index([action_key], map: "idx_action")
+  @@index([status, created_at], map: "idx_status_created")
+}
+
+model wa_templates {
+  id              Int       @id @default(autoincrement()) @db.UnsignedInt
+  name            String    @db.VarChar(120)
+  language        String    @default("en") @db.VarChar(20)
+  category        String?   @db.VarChar(40)
+  status          String?   @db.VarChar(30)
+  body_text       String?   @db.Text
+  header_text     String?   @db.Text
+  footer_text     String?   @db.Text
+  components_json String?   @db.LongText
+  variable_count  Int       @default(0) @db.UnsignedTinyInt
+  meta_id         String?   @db.VarChar(80)
+  fetched_at      DateTime? @default(now()) @db.Timestamp(0)
+
+  @@unique([name, language], map: "uniq_name_lang")
+  @@index([status], map: "idx_status")
+}
+
+enum PartnerSchoolStatus {
+  onboarding
+  active
+  suspended
+}
+
+enum StudentGender {
+  Male
+  Female
+  Other
+}
+
+enum StudentStatus {
+  active
+  inactive
+}
+
+enum FeeAdmissionStatus {
+  Continuing
+  New
+}
+
+enum FeePaymentStatus {
+  paid
+  partial
+  pending
+  overdue
+}
+
+enum AccountStatus {
+  active
+  inactive
+}
+
+enum hostel_rooms_block {
+  Boys
+  Girls
+}
+
+enum staff_attendance_punch_type {
+  in
+  out
+}
+
+enum hostel_rooms_room_type {
+  Triple
+  Twin
+  Single
+}
+
+enum voucher_approvers_status {
+  pending
+  approved
+  rejected
+}
+
+enum holidays_type {
+  public
+  school
+  optional
+  weekend
+}
+
+enum attendance_status {
+  present
+  absent
+  late
+  excused
+}
+
+enum exam_co_grades_grade {
+  A
+  B
+  C
+}
+
+enum student_edit_requests_status {
+  pending
+  approved
+  rejected
+  partial
+}
+
+enum leaves_half_day {
+  none
+  first_half
+  second_half
+}
+
+enum student_edit_request_fields_field_status {
+  pending
+  approved
+  rejected
+}
+
+enum users_gender {
+  Male
+  Female
+  Other
+}
+
+enum wa_message_log_status {
+  queued
+  sent
+  failed
+}
+
+enum fee_payments_method {
+  cash
+  upi
+  bank_transfer
+  cheque
+  card
+  other
+}
+
+enum admission_enquiries_source {
+  walk_in
+  phone
+  website
+  referral
+  social
+  newspaper
+  hoarding
+  event
+  other
+}
+
+enum student_promotions_action {
+  promoted
+  graduated
+  held_back
+}
+
+enum admission_enquiries_status {
+  new
+  contacted
+  visit_scheduled
+  visited
+  application
+  admitted
+  lost
+}
+
+enum staff_attendance_geofence_type {
+  school
+  pickup
+}
+
+enum fee_payment_attempts_status {
+  created
+  pending
+  success
+  failed
+  cancelled
+  expired
+}
+
+enum feature_purchases_status {
+  created
+  paid
+  failed
+}
+
+enum marketing_leads_status {
+  new
+  contacted
+  demo_done
+  converted
+  dropped
+}
+
+enum leaves_status {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+enum vouchers_status {
+  draft
+  pending_approval
+  approved
+  rejected
+  cancelled
+}
+
+enum vouchers_payment_status {
+  unpaid
+  paid
+  partial
+}
+
+enum vouchers_payment_method {
+  cash
+  upi
+  bank_transfer
+  cheque
+  card
+  other
+}
+
+enum student_fees_room_type {
+  Triple
+  Twin
+  Single
+}

@@ -1,0 +1,7 @@
+/*
+ * Reserved for app-level styling not provided by the design package.
+ *
+ * The canonical Crestly Design System CSS is imported in main.tsx (via the
+ * @crestly/design package). Don't duplicate it here. Use this file only for
+ * one-off web-specific tweaks.
+ */

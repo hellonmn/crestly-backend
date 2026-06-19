@@ -1,0 +1,29 @@
+{
+  "name": "Crestly · School ERP",
+  "short_name": "Crestly",
+  "description": "School operations — students, fees, transport, attendance.",
+  "id": "/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#FAF6EC",
+  "theme_color": "#100D0A",
+  "lang": "en-IN",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "categories": ["education", "productivity", "business"],
+  "icons": [
+    { "src": "/logos/crestly-app-icon-192-android.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/logos/crestly-app-icon-512.png",         "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/logos/crestly-app-icon-1024.png",        "sizes": "1024x1024", "type": "image/png", "purpose": "any" },
+    { "src": "/logos/crestly-app-icon-1024-square-ios.png", "sizes": "1024x1024", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Students", "short_name": "Students", "url": "/students",
+      "icons": [{ "src": "/logos/crestly-app-icon-192-android.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Add Student", "short_name": "Add", "url": "/students/new",
+      "icons": [{ "src": "/logos/crestly-app-icon-192-android.png", "sizes": "192x192", "type": "image/png" }] }
+  ]
+}

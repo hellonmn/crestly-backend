@@ -1,0 +1,52 @@
+{
+  "name": "@crestly/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "nest start --watch",
+    "prebuild": "node ../../scripts/run-bin.js prisma/build/index.js generate",
+    "build": "node ../../scripts/run-bin.js @nestjs/cli/bin/nest.js build",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "db:pull": "prisma db pull",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "seed:demo": "ts-node --transpile-only -P tsconfig.json scripts/seed-demo.ts",
+    "seed:super": "ts-node --transpile-only -P tsconfig.json scripts/seed-super.ts"
+  },
+  "dependencies": {
+    "@crestly/shared": "*",
+    "@nestjs/common": "10.4.7",
+    "@nestjs/config": "3.3.0",
+    "@nestjs/core": "10.4.7",
+    "@nestjs/jwt": "10.2.0",
+    "@nestjs/passport": "10.0.3",
+    "@nestjs/platform-express": "10.4.7",
+    "@nestjs/serve-static": "^4.0.2",
+    "@prisma/client": "5.22.0",
+    "@types/multer": "^1.4.13",
+    "bcryptjs": "2.4.3",
+    "class-transformer": "0.5.1",
+    "class-validator": "0.14.1",
+    "helmet": "8.0.0",
+    "multer": "^1.4.5-lts.1",
+    "passport": "0.7.0",
+    "passport-jwt": "4.0.1",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.1",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "10.4.7",
+    "@nestjs/schematics": "10.2.3",
+    "@nestjs/testing": "10.4.7",
+    "@types/bcryptjs": "2.4.6",
+    "@types/express": "5.0.0",
+    "@types/node": "20.17.6",
+    "@types/passport-jwt": "4.0.1",
+    "prisma": "5.22.0",
+    "ts-node": "10.9.2",
+    "tsconfig-paths": "4.2.0",
+    "typescript": "5.6.3"
+  }
+}

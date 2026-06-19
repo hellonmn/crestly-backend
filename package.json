@@ -1,0 +1,32 @@
+{
+  "name": "crestly",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.10.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "build:shared": "npm run build -w @crestly/shared",
+    "predev": "npm run build:shared",
+    "dev": "concurrently -n shared,api,web,super -c yellow,blue,magenta,cyan \"npm run dev -w @crestly/shared\" \"npm run dev -w @crestly/api\" \"npm run dev -w @crestly/web\" \"npm run dev -w @crestly/superadmin\"",
+    "dev:api": "npm run build:shared && npm run dev -w @crestly/api",
+    "dev:web": "npm run build:shared && npm run dev -w @crestly/web",
+    "dev:super": "npm run build:shared && npm run dev -w @crestly/superadmin",
+    "build": "npm run build:shared && npm run build --workspaces --if-present",
+    "build:api": "npm run build -w @crestly/shared && npm run build -w @crestly/api",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:pull": "npm run db:pull -w @crestly/api",
+    "db:generate": "npm run db:generate -w @crestly/api",
+    "db:studio": "npm run db:studio -w @crestly/api"
+  },
+  "devDependencies": {
+    "concurrently": "9.0.1",
+    "typescript": "5.6.3"
+  }
+}

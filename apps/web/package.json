@@ -1,0 +1,42 @@
+{
+  "name": "@crestly/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext ts,tsx"
+  },
+  "dependencies": {
+    "@crestly/design": "*",
+    "@crestly/icons": "*",
+    "@crestly/shared": "*",
+    "@radix-ui/react-label": "2.1.0",
+    "@radix-ui/react-slot": "1.1.0",
+    "@tanstack/react-query": "5.59.16",
+    "axios": "1.7.7",
+    "class-variance-authority": "0.7.0",
+    "clsx": "2.1.1",
+    "lottie-react": "^2.4.0",
+    "lucide-react": "0.460.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-hook-form": "7.53.2",
+    "react-router-dom": "6.27.0",
+    "tailwind-merge": "2.5.4",
+    "vite-plugin-pwa": "^0.21.2",
+    "workbox-window": "^7.4.1",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "20.17.6",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.3.3",
+    "typescript": "5.6.3",
+    "vite": "5.4.10"
+  }
+}
