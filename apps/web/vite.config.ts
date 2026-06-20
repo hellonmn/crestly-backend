@@ -21,8 +21,8 @@ export default defineConfig({
           "**/*.{js,css,html,svg,png,ico,woff2}",
         ],
         // Don't cache the API; we never want stale data.
-        navigateFallback: "/offline.html",
-        navigateFallbackDenylist: [/^\/api\//, /^\/@/],
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api\//, /^\/uploads\//, /^\/@/],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
