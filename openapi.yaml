@@ -1,0 +1,749 @@
+openapi: 3.0.3
+info:
+  title: Crestly API — Calendar, Contact (Masked Calling) & Tests
+  version: "1.0.0"
+  description: >
+    Endpoints for the school calendar, parent contact + Exotel masked calling,
+    and MCQ/fill-in-the-blank tests. Two bearer realms: `staffAuth`
+    (POST /auth/login) and `parentAuth` (POST /parent/login). Import into
+    Postman/Insomnia, or serve with Swagger UI. See MOBILE-API.md for prose.
+servers:
+  - url: https://app.crestly.in/api
+    description: Production (same-origin proxy)
+  - url: http://localhost:4000/api
+    description: Local dev
+
+security:
+  - staffAuth: []
+
+tags:
+  - name: Auth
+  - name: Calendar
+  - name: Contact & Calling
+  - name: Tests
+  - name: Parent Portal
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Staff login → staff JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, password]
+              properties:
+                phone: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: { type: string }
+                  user: { type: object }
+
+  /parent/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Parent login → parent JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, dob]
+              properties:
+                phone: { type: string, description: "10–13 digits" }
+                dob: { type: string, description: "Child DOB as DDMMYYYY" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: { type: string }
+                  kids: { type: array, items: { type: object } }
+
+  # ─────────────── Calendar (staff) ───────────────
+  /calendar/feed:
+    get:
+      tags: [Calendar]
+      summary: Merged feed (events + holidays + exams)
+      parameters:
+        - { name: month, in: query, schema: { type: string, example: "2026-06" } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: classSlug, in: query, schema: { type: string } }
+        - { name: includeHolidays, in: query, schema: { type: boolean } }
+        - { name: includeExams, in: query, schema: { type: boolean } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalendarFeedResponse" }
+
+  /calendar/events:
+    get:
+      tags: [Calendar]
+      summary: Raw editable events
+      parameters:
+        - { name: session, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/CalendarEvent" } }
+    post:
+      tags: [Calendar]
+      summary: Create event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CalendarEventUpsert" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalendarEvent" }
+
+  /calendar/events/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [Calendar]
+      summary: One event
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalendarEvent" }
+    put:
+      tags: [Calendar]
+      summary: Update event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CalendarEventUpsert" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalendarEvent" }
+    delete:
+      tags: [Calendar]
+      summary: Delete event
+      responses:
+        "200": { description: OK }
+
+  # ─────────────── Calendar (parent) ───────────────
+  /parent/calendar:
+    get:
+      tags: [Parent Portal]
+      security: [{ parentAuth: [] }]
+      summary: Calendar feed for a child (parent-visible)
+      parameters:
+        - { name: sr, in: query, schema: { type: integer } }
+        - { name: month, in: query, schema: { type: string, example: "2026-06" } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalendarFeedResponse" }
+
+  # ─────────────── Contact (parent) ───────────────
+  /parent/contact:
+    get:
+      tags: [Parent Portal]
+      security: [{ parentAuth: [] }]
+      summary: Contact list for a child (office status, call gating, masking flags)
+      parameters:
+        - { name: sr, in: query, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ParentContactResponse" }
+
+  /parent/contact/call:
+    post:
+      tags: [Parent Portal]
+      security: [{ parentAuth: [] }]
+      summary: Place a masked call (no numbers exchanged)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MaskedCallRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MaskedCallResult" }
+
+  # ─────────────── Calling settings (staff) ───────────────
+  /calling/settings:
+    get:
+      tags: [Contact & Calling]
+      summary: Get masked-calling settings (secrets masked)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CallingSettings" }
+    put:
+      tags: [Contact & Calling]
+      summary: Update masked-calling settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CallingSettingsUpdate" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CallingSettings" }
+
+  /calling/settings/test:
+    post:
+      tags: [Contact & Calling]
+      summary: Verify Exotel credentials
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CallingTestResult" }
+
+  # ─────────────── Tests (staff) ───────────────
+  /tests:
+    get:
+      tags: [Tests]
+      summary: List tests
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [draft, published, closed] } }
+        - { name: classSlug, in: query, schema: { type: string } }
+        - { name: sessionCode, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/TestListItem" } }
+    post:
+      tags: [Tests]
+      summary: Create test
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TestUpsert" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Test" }
+
+  /tests/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [Tests]
+      summary: Full test incl. answer key
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Test" }
+    put:
+      tags: [Tests]
+      summary: Update test (blocked once attempts exist)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TestUpsert" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Test" }
+    delete:
+      tags: [Tests]
+      summary: Delete test (cascades attempts)
+      responses:
+        "200": { description: OK }
+
+  /tests/{id}/publish:
+    post:
+      tags: [Tests]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      summary: Publish test
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Test" }
+
+  /tests/{id}/close:
+    post:
+      tags: [Tests]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      summary: Close test
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Test" }
+
+  /tests/{id}/results:
+    get:
+      tags: [Tests]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      summary: Per-student results + average
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TestResultsResponse" }
+
+  # ─────────────── Tests (parent) ───────────────
+  /parent/tests:
+    get:
+      tags: [Parent Portal]
+      security: [{ parentAuth: [] }]
+      summary: Tests for a child (with state + prior score)
+      parameters:
+        - { name: sr, in: query, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ParentTestListResponse" }
+
+  /parent/tests/{id}:
+    get:
+      tags: [Parent Portal]
+      security: [{ parentAuth: [] }]
+      summary: Playable test (no answer key)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { name: sr, in: query, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ParentTestDetail" }
+
+  /parent/tests/{id}/submit:
+    post:
+      tags: [Parent Portal]
+      security: [{ parentAuth: [] }]
+      summary: Submit answers → auto-graded result
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TestSubmitInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TestSubmitResult" }
+
+components:
+  securitySchemes:
+    staffAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token from POST /auth/login
+    parentAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token from POST /parent/login
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        message: { oneOf: [{ type: string }, { type: array, items: { type: string } }] }
+        issues:
+          type: array
+          items:
+            type: object
+            properties:
+              path: { type: array, items: {} }
+              message: { type: string }
+
+    CalendarCategory:
+      type: string
+      enum: [event, ptm, function, activity, sports, exam, fee, meeting, notice, holiday, other]
+    CalendarAudience:
+      type: string
+      enum: [all, staff, parents]
+
+    CalendarFeedItem:
+      type: object
+      properties:
+        key: { type: string, example: "event:12" }
+        source: { type: string, enum: [event, holiday, exam] }
+        refId: { type: integer }
+        title: { type: string }
+        category: { $ref: "#/components/schemas/CalendarCategory" }
+        date: { type: string, format: date }
+        endDate: { type: string, format: date, nullable: true }
+        startTime: { type: string, nullable: true, example: "10:00" }
+        endTime: { type: string, nullable: true }
+        allDay: { type: boolean }
+        isHoliday: { type: boolean }
+        audience: { $ref: "#/components/schemas/CalendarAudience" }
+        classLabel: { type: string, nullable: true }
+        location: { type: string, nullable: true }
+        color: { type: string, nullable: true }
+        editable: { type: boolean }
+
+    CalendarFeedResponse:
+      type: object
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        items: { type: array, items: { $ref: "#/components/schemas/CalendarFeedItem" } }
+
+    CalendarEvent:
+      type: object
+      properties:
+        id: { type: integer }
+        sessionCode: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        category: { $ref: "#/components/schemas/CalendarCategory" }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date, nullable: true }
+        startTime: { type: string, nullable: true }
+        endTime: { type: string, nullable: true }
+        allDay: { type: boolean }
+        isHoliday: { type: boolean }
+        audience: { $ref: "#/components/schemas/CalendarAudience" }
+        classSlug: { type: string, nullable: true }
+        location: { type: string, nullable: true }
+        color: { type: string, nullable: true }
+        createdBy: { type: integer, nullable: true }
+        createdAt: { type: string, nullable: true }
+
+    CalendarEventUpsert:
+      type: object
+      required: [title, startDate]
+      properties:
+        title: { type: string, maxLength: 160 }
+        description: { type: string, nullable: true }
+        category: { $ref: "#/components/schemas/CalendarCategory" }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date, nullable: true }
+        startTime: { type: string, nullable: true, example: "10:00" }
+        endTime: { type: string, nullable: true, example: "13:00" }
+        allDay: { type: boolean, default: true }
+        isHoliday: { type: boolean, default: false }
+        audience: { $ref: "#/components/schemas/CalendarAudience" }
+        classSlug: { type: string, nullable: true }
+        location: { type: string, nullable: true }
+        color: { type: string, nullable: true }
+        sessionCode: { type: string }
+
+    ParentOfficeStatus:
+      type: object
+      properties:
+        isOpen: { type: boolean }
+        opensAt: { type: string, nullable: true }
+        closesAt: { type: string, nullable: true }
+        hoursLabel: { type: string, nullable: true }
+        label: { type: string }
+
+    ParentContactStaff:
+      type: object
+      properties:
+        id: { type: integer }
+        roleLabel: { type: string }
+        name: { type: string }
+        designation: { type: string, nullable: true }
+        phone: { type: string, nullable: true, description: "null when callMasked" }
+        whatsapp: { type: string, nullable: true }
+        callStart: { type: string, nullable: true }
+        callEnd: { type: string, nullable: true }
+        canCallNow: { type: boolean }
+        callMasked: { type: boolean }
+        subjects: { type: array, items: { type: string } }
+        isClassTeacher: { type: boolean }
+
+    ParentContactResponse:
+      type: object
+      properties:
+        srNumber: { type: integer }
+        classLabel: { type: string }
+        office: { $ref: "#/components/schemas/ParentOfficeStatus" }
+        callingEnabled: { type: boolean }
+        schoolWhatsapp: { type: string, nullable: true }
+        subjectTeachers: { type: array, items: { $ref: "#/components/schemas/ParentContactStaff" } }
+        schoolChain: { type: array, items: { $ref: "#/components/schemas/ParentContactStaff" } }
+
+    MaskedCallRequest:
+      type: object
+      required: [sr, staffId]
+      properties:
+        sr: { type: integer }
+        staffId: { type: integer }
+    MaskedCallResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        callId: { type: string, nullable: true }
+        status: { type: string }
+        message: { type: string, nullable: true }
+
+    CallingSettings:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        provider: { type: string, enum: [exotel] }
+        sid: { type: string, nullable: true }
+        subdomain: { type: string }
+        callerId: { type: string, nullable: true }
+        apiKey: { type: string, nullable: true, description: "masked preview" }
+        hasApiKey: { type: boolean }
+        hasApiToken: { type: boolean }
+    CallingSettingsUpdate:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+        provider: { type: string, enum: [exotel], default: exotel }
+        sid: { type: string, nullable: true }
+        subdomain: { type: string, default: "api.exotel.com" }
+        callerId: { type: string, nullable: true }
+        apiKey: { type: string, nullable: true }
+        apiToken: { type: string, nullable: true }
+    CallingTestResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        error: { type: string }
+
+    McqOption:
+      type: object
+      properties:
+        text: { type: string }
+
+    TestQuestionUpsert:
+      type: object
+      required: [type, prompt]
+      properties:
+        type: { type: string, enum: [mcq, fill_blank] }
+        prompt: { type: string }
+        marks: { type: integer, default: 1 }
+        options: { type: array, items: { $ref: "#/components/schemas/McqOption" } }
+        correctOptions: { type: array, items: { type: integer } }
+        acceptedAnswers: { type: array, items: { type: string } }
+        caseSensitive: { type: boolean, default: false }
+
+    TestUpsert:
+      type: object
+      required: [title, classSlug, questions]
+      properties:
+        title: { type: string }
+        instructions: { type: string, nullable: true }
+        classSlug: { type: string }
+        sectionCode: { type: string, nullable: true }
+        subjectId: { type: integer, nullable: true }
+        durationMin: { type: integer, nullable: true }
+        availableFrom: { type: string, nullable: true }
+        availableTo: { type: string, nullable: true }
+        shuffle: { type: boolean, default: false }
+        sessionCode: { type: string }
+        questions: { type: array, items: { $ref: "#/components/schemas/TestQuestionUpsert" } }
+
+    TestQuestion:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [mcq, fill_blank] }
+        prompt: { type: string }
+        marks: { type: integer }
+        sortOrder: { type: integer }
+        options: { type: array, nullable: true, items: { $ref: "#/components/schemas/McqOption" } }
+        correctOptions: { type: array, nullable: true, items: { type: integer } }
+        acceptedAnswers: { type: array, nullable: true, items: { type: string } }
+        caseSensitive: { type: boolean }
+
+    Test:
+      type: object
+      properties:
+        id: { type: integer }
+        sessionCode: { type: string }
+        title: { type: string }
+        instructions: { type: string, nullable: true }
+        classSlug: { type: string }
+        sectionCode: { type: string, nullable: true }
+        subjectId: { type: integer, nullable: true }
+        subjectName: { type: string, nullable: true }
+        status: { type: string, enum: [draft, published, closed] }
+        durationMin: { type: integer, nullable: true }
+        availableFrom: { type: string, nullable: true }
+        availableTo: { type: string, nullable: true }
+        shuffle: { type: boolean }
+        totalMarks: { type: integer }
+        questionCount: { type: integer }
+        createdBy: { type: integer, nullable: true }
+        createdAt: { type: string, nullable: true }
+        questions: { type: array, items: { $ref: "#/components/schemas/TestQuestion" } }
+
+    TestListItem:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        classSlug: { type: string }
+        sectionCode: { type: string, nullable: true }
+        subjectName: { type: string, nullable: true }
+        status: { type: string, enum: [draft, published, closed] }
+        totalMarks: { type: integer }
+        questionCount: { type: integer }
+        attemptCount: { type: integer }
+        availableFrom: { type: string, nullable: true }
+        availableTo: { type: string, nullable: true }
+        createdAt: { type: string, nullable: true }
+
+    TestResultRow:
+      type: object
+      properties:
+        attemptId: { type: integer }
+        srNumber: { type: integer }
+        studentName: { type: string }
+        classLabel: { type: string }
+        score: { type: integer, nullable: true }
+        maxScore: { type: integer }
+        status: { type: string, enum: [in_progress, submitted] }
+        submittedAt: { type: string, nullable: true }
+    TestResultsResponse:
+      type: object
+      properties:
+        testId: { type: integer }
+        title: { type: string }
+        totalMarks: { type: integer }
+        attempts: { type: array, items: { $ref: "#/components/schemas/TestResultRow" } }
+        averagePct: { type: number, nullable: true }
+
+    AttemptQuestion:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [mcq, fill_blank] }
+        prompt: { type: string }
+        marks: { type: integer }
+        options: { type: array, nullable: true, items: { $ref: "#/components/schemas/McqOption" } }
+
+    ParentTestListItem:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        subjectName: { type: string, nullable: true }
+        totalMarks: { type: integer }
+        questionCount: { type: integer }
+        durationMin: { type: integer, nullable: true }
+        availableFrom: { type: string, nullable: true }
+        availableTo: { type: string, nullable: true }
+        state: { type: string, enum: [available, upcoming, closed, attempted] }
+        score: { type: integer, nullable: true }
+    ParentTestListResponse:
+      type: object
+      properties:
+        srNumber: { type: integer }
+        tests: { type: array, items: { $ref: "#/components/schemas/ParentTestListItem" } }
+
+    ParentTestDetail:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        instructions: { type: string, nullable: true }
+        subjectName: { type: string, nullable: true }
+        durationMin: { type: integer, nullable: true }
+        totalMarks: { type: integer }
+        alreadyAttempted: { type: boolean }
+        questions: { type: array, items: { $ref: "#/components/schemas/AttemptQuestion" } }
+
+    TestAnswerInput:
+      type: object
+      required: [questionId]
+      properties:
+        questionId: { type: integer }
+        selectedOptions: { type: array, items: { type: integer } }
+        responseText: { type: string }
+    TestSubmitInput:
+      type: object
+      required: [sr, answers]
+      properties:
+        sr: { type: integer }
+        answers: { type: array, items: { $ref: "#/components/schemas/TestAnswerInput" } }
+
+    GradedAnswer:
+      type: object
+      properties:
+        questionId: { type: integer }
+        type: { type: string, enum: [mcq, fill_blank] }
+        prompt: { type: string }
+        marks: { type: integer }
+        awardedMarks: { type: integer }
+        isCorrect: { type: boolean }
+        selectedOptions: { type: array, nullable: true, items: { type: integer } }
+        responseText: { type: string, nullable: true }
+        correctOptions: { type: array, nullable: true, items: { type: integer } }
+        acceptedAnswers: { type: array, nullable: true, items: { type: string } }
+    TestSubmitResult:
+      type: object
+      properties:
+        testId: { type: integer }
+        srNumber: { type: integer }
+        score: { type: integer }
+        maxScore: { type: integer }
+        percent: { type: number }
+        submittedAt: { type: string }
+        answers: { type: array, items: { $ref: "#/components/schemas/GradedAnswer" } }
