@@ -2,7 +2,15 @@ import { ForbiddenException, Injectable, Logger, NotFoundException, Unauthorized
 import { JwtService } from "@nestjs/jwt";
 import { TenantService } from "../tenant/tenant.service";
 import { PaymentsService } from "../payments/payments.service";
+import { buildCalendarFeed, resolveRange } from "../calendar/calendar.feed";
+import {
+  readCallingConfig, isCallingUsable, placeMaskedCall,
+} from "../calling/calling.exotel";
+import { parseQuestion, gradeAnswer } from "../tests/tests.grading";
 import type {
+  CalendarFeedResponse,
+  MaskedCallResult,
+  ParentTestListResponse, ParentTestDetail, TestSubmitInput, TestSubmitResult,
   CheckoutCreateInput, CheckoutSession,
   ParentAttendanceMonth,
   ParentContactResponse, ParentContactStaff, ParentOfficeStatus,
@@ -556,6 +564,8 @@ export class ParentService {
           whatsapp: u.whatsapp ?? null,
           callStart: null,
           callEnd: null,
+          canCallNow: false,
+          callMasked: false,
           subjects: subj ? [subj] : [],
           isClassTeacher: false,
         });
@@ -590,6 +600,8 @@ export class ParentService {
       whatsapp: u.whatsapp ?? null,
       callStart: null,
       callEnd: null,
+      canCallNow: false,
+      callMasked: false,
     }));
 
     // Populate callStart/callEnd from each staffer's latest duty schedule.
@@ -613,13 +625,309 @@ export class ParentService {
     const fallbackHours = hoursRow[0]?.v?.trim() || null;
     const office = this.officeStatus(receptionWindow, chainWindows, fallbackHours);
 
+    // Call gating + number masking. When masked calling is configured we
+    // NEVER hand the parent a personal number — calls go through the
+    // provider (POST /parent/contact/call). The call button is enabled
+    // only inside each staffer's window (or office hours as a fallback).
+    const callMasked = isCallingUsable(await readCallingConfig(this.db));
+    const { minutes, dow } = nowInIst();
+    const isSunday = dow === 0;
+    for (const s of allStaff) {
+      s.canCallNow = !isSunday && (
+        s.callStart && s.callEnd
+          ? minutes >= hmToMinutes(s.callStart) && minutes < hmToMinutes(s.callEnd)
+          : office.isOpen
+      );
+      s.callMasked = callMasked;
+      if (callMasked) { s.phone = null; s.whatsapp = null; }
+    }
+
+    // After-hours WhatsApp routes through the school's business number,
+    // never a staffer's personal one.
+    const waNum = await this.db.app_settings.findUnique({
+      where: { setting_key: "whatsapp.display_number" },
+      select: { setting_value: true },
+    });
+    const schoolWhatsapp = waNum?.setting_value?.trim() || null;
+
     return {
       srNumber: sr,
       classLabel: `${classSlug}-${sectionCode}`,
       office,
+      callingEnabled: callMasked,
+      schoolWhatsapp,
       subjectTeachers: Array.from(teacherMap.values()),
       schoolChain: chain,
     };
+  }
+
+  /* ─── MASKED CALL ─── */
+
+  /**
+   * Place a masked parent ↔ staff call via the provider (Exotel). Neither
+   * party sees the other's number. Refuses outside the staffer's call
+   * window so the gating can't be bypassed by hitting the API directly.
+   */
+  async callStaff(sr: number, staffId: number, parentPhone: string, allowedSrs: number[]): Promise<MaskedCallResult> {
+    this.ensureScope(sr, allowedSrs);
+
+    const cfg = await readCallingConfig(this.db);
+    if (!isCallingUsable(cfg)) {
+      throw new ForbiddenException("Calling is not available. Please use WhatsApp.");
+    }
+
+    const staff = await this.db.user.findFirst({
+      where: { id: staffId, status: "active" },
+      select: { phone: true },
+    });
+    if (!staff?.phone) throw new NotFoundException("Staff member not reachable.");
+
+    // Enforce the same window gating the UI shows.
+    const window = (await this.dutyWindows([staffId])).get(staffId);
+    const { minutes, dow } = nowInIst();
+    const open = dow !== 0 && (
+      window
+        ? minutes >= hmToMinutes(window.start) && minutes < hmToMinutes(window.end)
+        : true
+    );
+    if (!open) {
+      throw new ForbiddenException("Calling is closed right now. Please use WhatsApp.");
+    }
+
+    if (!parentPhone) throw new ForbiddenException("Your number is unavailable for calling.");
+    return placeMaskedCall(cfg, parentPhone, staff.phone);
+  }
+
+  /* ─── TESTS (MCQ + fill-in-the-blanks) ─── */
+
+  /** Published tests for a child's class, with attempt state + prior score. */
+  async tests(sr: number, allowedSrs: number[]): Promise<ParentTestListResponse> {
+    this.ensureScope(sr, allowedSrs);
+    const sessionCode = await this.currentSessionCode();
+    const student = await this.db.student.findUnique({
+      where: { srNumber: sr },
+      select: { class: true, section: true },
+    });
+    const classSlug = student?.class ?? "";
+    const sectionCode = student?.section ?? "";
+
+    const tests = await this.db.tests.findMany({
+      where: {
+        session_code: sessionCode,
+        status: "published",
+        class_slug: classSlug,
+        OR: [{ section_code: null }, { section_code: sectionCode }],
+      },
+      include: { _count: { select: { test_questions: true } } },
+      orderBy: { id: "desc" },
+    });
+
+    const ids = tests.map((t) => t.id);
+    const attempts = ids.length
+      ? await this.db.test_attempts.findMany({ where: { test_id: { in: ids }, sr_number: sr } })
+      : [];
+    const aMap = new Map(attempts.map((a) => [a.test_id, a]));
+    const subjMap = await this.subjectNames(tests.map((t) => t.subject_id));
+    const now = new Date();
+
+    return {
+      srNumber: sr,
+      tests: tests.map((t) => {
+        const att = aMap.get(t.id);
+        let state: ParentTestListResponse["tests"][number]["state"];
+        if (att?.status === "submitted") state = "attempted";
+        else if (t.available_from && t.available_from > now) state = "upcoming";
+        else if (t.available_to && t.available_to < now) state = "closed";
+        else state = "available";
+        return {
+          id: t.id,
+          title: t.title,
+          subjectName: t.subject_id ? subjMap.get(t.subject_id) ?? null : null,
+          totalMarks: t.total_marks,
+          questionCount: t._count.test_questions,
+          durationMin: t.duration_min,
+          availableFrom: t.available_from ? t.available_from.toISOString() : null,
+          availableTo: t.available_to ? t.available_to.toISOString() : null,
+          state,
+          score: att?.score ?? null,
+        };
+      }),
+    };
+  }
+
+  /** A playable test for the child — questions WITHOUT the answer key. */
+  async testDetail(testId: number, sr: number, allowedSrs: number[]): Promise<ParentTestDetail> {
+    this.ensureScope(sr, allowedSrs);
+    const test = await this.loadOpenTestForStudent(testId, sr, { enforceWindow: true });
+    const attempt = await this.db.test_attempts.findUnique({
+      where: { test_id_sr_number: { test_id: testId, sr_number: sr } },
+    });
+    const subjMap = await this.subjectNames([test.subject_id]);
+    return {
+      id: test.id,
+      title: test.title,
+      instructions: test.instructions,
+      subjectName: test.subject_id ? subjMap.get(test.subject_id) ?? null : null,
+      durationMin: test.duration_min,
+      totalMarks: test.total_marks,
+      alreadyAttempted: attempt?.status === "submitted",
+      questions: test.test_questions.map((q) => {
+        const p = parseQuestion(q);
+        return { id: p.id, type: p.type, prompt: p.prompt, marks: p.marks, options: p.options };
+      }),
+    };
+  }
+
+  /** Submit + auto-grade a child's attempt. One submission per child per test. */
+  async submitTest(
+    testId: number,
+    input: TestSubmitInput,
+    allowedSrs: number[],
+    phone: string,
+  ): Promise<TestSubmitResult> {
+    const sr = input.sr;
+    this.ensureScope(sr, allowedSrs);
+    const test = await this.loadOpenTestForStudent(testId, sr, { enforceWindow: true });
+
+    const existing = await this.db.test_attempts.findUnique({
+      where: { test_id_sr_number: { test_id: testId, sr_number: sr } },
+    });
+    if (existing?.status === "submitted") {
+      throw new ForbiddenException("You've already submitted this test.");
+    }
+
+    const parsed = test.test_questions.map(parseQuestion);
+    const ansByQ = new Map(input.answers.map((a) => [a.questionId, a]));
+    let score = 0;
+    const graded = parsed.map((q) => {
+      const a = ansByQ.get(q.id);
+      const { isCorrect, awarded } = gradeAnswer(q, a?.selectedOptions, a?.responseText);
+      score += awarded;
+      return { q, a, isCorrect, awarded };
+    });
+    const maxScore = test.total_marks;
+    const now = new Date();
+
+    const attempt = await this.db.test_attempts.upsert({
+      where: { test_id_sr_number: { test_id: testId, sr_number: sr } },
+      update: { status: "submitted", score, max_score: maxScore, submitted_at: now, submitted_by_phone: phone },
+      create: {
+        test_id: testId, sr_number: sr, status: "submitted",
+        score, max_score: maxScore, submitted_at: now, submitted_by_phone: phone,
+      },
+    });
+    await this.db.test_attempt_answers.deleteMany({ where: { attempt_id: attempt.id } });
+    await this.db.test_attempt_answers.createMany({
+      data: graded.map((g) => ({
+        attempt_id: attempt.id,
+        question_id: g.q.id,
+        selected_json: g.q.type === "mcq" ? JSON.stringify(g.a?.selectedOptions ?? []) : null,
+        response_text: g.q.type === "fill_blank" ? g.a?.responseText ?? null : null,
+        is_correct: g.isCorrect,
+        awarded_marks: g.awarded,
+      })),
+    });
+
+    return {
+      testId,
+      srNumber: sr,
+      score,
+      maxScore,
+      percent: maxScore > 0 ? Math.round((score / maxScore) * 1000) / 10 : 0,
+      submittedAt: now.toISOString(),
+      answers: graded.map((g) => ({
+        questionId: g.q.id,
+        type: g.q.type,
+        prompt: g.q.prompt,
+        marks: g.q.marks,
+        awardedMarks: g.awarded,
+        isCorrect: g.isCorrect,
+        selectedOptions: g.q.type === "mcq" ? g.a?.selectedOptions ?? [] : null,
+        responseText: g.q.type === "fill_blank" ? g.a?.responseText ?? null : null,
+        correctOptions: g.q.correctOptions,
+        acceptedAnswers: g.q.acceptedAnswers,
+      })),
+    };
+  }
+
+  /**
+   * Load a published test and assert it belongs to this child's class and
+   * (optionally) is within its availability window.
+   */
+  private async loadOpenTestForStudent(
+    testId: number,
+    sr: number,
+    opts: { enforceWindow: boolean },
+  ) {
+    const test = await this.db.tests.findUnique({
+      where: { id: testId },
+      include: { test_questions: { orderBy: { sort_order: "asc" } } },
+    });
+    if (!test || test.status !== "published") {
+      throw new NotFoundException("Test not available.");
+    }
+    const student = await this.db.student.findUnique({
+      where: { srNumber: sr },
+      select: { class: true, section: true },
+    });
+    const classOk = student && student.class === test.class_slug &&
+      (!test.section_code || test.section_code === student.section);
+    if (!classOk) throw new ForbiddenException("This test isn't for this student.");
+
+    if (opts.enforceWindow) {
+      const now = new Date();
+      if (test.available_from && test.available_from > now) {
+        throw new ForbiddenException("This test hasn't opened yet.");
+      }
+      if (test.available_to && test.available_to < now) {
+        throw new ForbiddenException("This test has closed.");
+      }
+    }
+    return test;
+  }
+
+  private async subjectNames(ids: (number | null)[]): Promise<Map<number, string>> {
+    const unique = [...new Set(ids.filter((x): x is number => x != null))];
+    if (unique.length === 0) return new Map();
+    const rows = await this.db.exam_subjects.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, name: true },
+    });
+    return new Map(rows.map((r) => [r.id, r.name]));
+  }
+
+  /* ─── CALENDAR ─── */
+
+  /**
+   * School calendar feed for parents — merged events + holidays + exams,
+   * restricted to parent-visible audiences. When `sr` is given, the feed
+   * is scoped to that child's class (school-wide entries still included).
+   */
+  async calendar(
+    query: { month?: string; from?: string; to?: string },
+    allowedSrs: number[],
+    sr?: number,
+  ): Promise<CalendarFeedResponse> {
+    const sessionCode = await this.currentSessionCode();
+    let classSlug: string | undefined;
+    if (sr) {
+      this.ensureScope(sr, allowedSrs);
+      const student = await this.db.student.findUnique({
+        where: { srNumber: sr },
+        select: { class: true },
+      });
+      classSlug = student?.class ?? undefined;
+    }
+    const { from, to } = resolveRange(query);
+    return buildCalendarFeed(this.db, {
+      from,
+      to,
+      sessionCode,
+      classSlug,
+      includeHolidays: true,
+      includeExams: true,
+      parentScope: true,
+    });
   }
 
   /**

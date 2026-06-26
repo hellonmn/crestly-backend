@@ -39,8 +39,10 @@ export const NAV_GROUPS: NavGroup[] = [
     title: "Records",
     items: [
       { to: "/attendance", label: "Attendance", icon: "attendance", tint: "sky", perm: "attendance.mark" },
+      { to: "/calendar", label: "Calendar", icon: "calendar", tint: "sky" },
       { to: "/classes", label: "Classes", icon: "classes", tint: "wheat", perm: "classes.view" },
       { to: "/exams", label: "Exams", icon: "exams", tint: "mustard", perm: "exams.view" },
+      { to: "/tests", label: "Tests", icon: "exams", tint: "mint", perm: "exams.view" },
       { to: "/families", label: "Families", icon: "families", tint: "rose" },
       { to: "/hostel", label: "Hostel", icon: "hostel", tint: "peach" },
       { to: "/streams", label: "Streams", icon: "streams", tint: "sky", perm: "students.view" },
@@ -86,6 +88,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: "System",
     items: [
       { to: "/settings", label: "Settings", icon: "settings", tint: "wheat" },
+      { to: "/settings/calling", label: "Masked Calling", icon: "phone", tint: "sky" },
       { to: "/features", label: "Upgrade Plan", icon: "features", tint: "mustard" },
     ],
   },

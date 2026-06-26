@@ -248,6 +248,7 @@ model User {
   admission_enquiries_admission_enquiries_assigned_toTousers        admission_enquiries[]     @relation("admission_enquiries_assigned_toTousers")
   admission_enquiries_admission_enquiries_created_byTousers         admission_enquiries[]     @relation("admission_enquiries_created_byTousers")
   admission_followups                                               admission_followups[]
+  calendar_events                                                   calendar_events[]
   class_diary_class_diary_created_byTousers                         class_diary[]             @relation("class_diary_created_byTousers")
   class_diary_class_diary_teacher_user_idTousers                    class_diary[]             @relation("class_diary_teacher_user_idTousers")
   dashboard_reviews                                                 dashboard_reviews[]
@@ -561,6 +562,106 @@ model exam_datesheet {
   @@index([subject_id], map: "fk_eds_subj")
   @@index([exam_date], map: "idx_date")
   @@index([term_id, class_slug], map: "idx_term_class")
+}
+
+model calendar_events {
+  id           Int                      @id @default(autoincrement()) @db.UnsignedInt
+  session_code String                   @db.VarChar(10)
+  title        String                   @db.VarChar(160)
+  description  String?                  @db.VarChar(1000)
+  category     calendar_events_category @default(event)
+  start_date   DateTime                 @db.Date
+  end_date     DateTime?                @db.Date
+  start_time   DateTime?                @db.Time(0)
+  end_time     DateTime?                @db.Time(0)
+  all_day      Boolean                  @default(true)
+  is_holiday   Boolean                  @default(false)
+  audience     calendar_events_audience @default(all)
+  class_slug   String?                  @db.VarChar(16)
+  location     String?                  @db.VarChar(160)
+  color        String?                  @db.VarChar(16)
+  created_by   Int?                     @db.UnsignedInt
+  created_at   DateTime?                @default(now()) @db.Timestamp(0)
+  updated_at   DateTime?                @default(now()) @updatedAt @db.Timestamp(0)
+  users        User?                    @relation(fields: [created_by], references: [id], onUpdate: Restrict, map: "fk_cal_by")
+
+  @@index([created_by], map: "fk_cal_by")
+  @@index([start_date], map: "idx_date")
+  @@index([session_code, start_date], map: "idx_session_date")
+}
+
+model tests {
+  id             Int              @id @default(autoincrement()) @db.UnsignedInt
+  session_code   String           @db.VarChar(10)
+  title          String           @db.VarChar(160)
+  instructions   String?          @db.VarChar(2000)
+  class_slug     String           @db.VarChar(16)
+  section_code   String?          @db.VarChar(8)
+  subject_id     Int?             @db.UnsignedInt
+  status         tests_status     @default(draft)
+  duration_min   Int?             @db.UnsignedSmallInt
+  available_from DateTime?        @db.DateTime(0)
+  available_to   DateTime?        @db.DateTime(0)
+  shuffle        Boolean          @default(false)
+  total_marks    Int              @default(0) @db.UnsignedInt
+  created_by     Int?             @db.UnsignedInt
+  created_at     DateTime?        @default(now()) @db.Timestamp(0)
+  updated_at     DateTime?        @default(now()) @updatedAt @db.Timestamp(0)
+  test_questions test_questions[]
+  test_attempts  test_attempts[]
+
+  @@index([session_code, class_slug], map: "idx_session_class")
+  @@index([status], map: "idx_status")
+  @@index([subject_id], map: "fk_test_subj")
+  @@index([created_by], map: "fk_test_by")
+}
+
+model test_questions {
+  id                   Int                    @id @default(autoincrement()) @db.UnsignedInt
+  test_id              Int                    @db.UnsignedInt
+  q_type               test_questions_q_type
+  prompt               String                 @db.VarChar(2000)
+  marks                Int                    @default(1) @db.UnsignedInt
+  sort_order           Int                    @default(0) @db.UnsignedInt
+  options_json         String?                @db.Text
+  answer_json          String                 @db.Text
+  case_sensitive       Boolean                @default(false)
+  tests                tests                  @relation(fields: [test_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_tq_test")
+  test_attempt_answers test_attempt_answers[]
+
+  @@index([test_id], map: "idx_test")
+}
+
+model test_attempts {
+  id                   Int                    @id @default(autoincrement()) @db.UnsignedInt
+  test_id              Int                    @db.UnsignedInt
+  sr_number            Int                    @db.UnsignedInt
+  submitted_by_phone   String?                @db.VarChar(20)
+  status               test_attempts_status   @default(in_progress)
+  score                Int?                   @db.UnsignedInt
+  max_score            Int                    @default(0) @db.UnsignedInt
+  started_at           DateTime?              @default(now()) @db.Timestamp(0)
+  submitted_at         DateTime?              @db.DateTime(0)
+  tests                tests                  @relation(fields: [test_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_ta_test")
+  test_attempt_answers test_attempt_answers[]
+
+  @@unique([test_id, sr_number], map: "uniq_test_student")
+  @@index([sr_number], map: "idx_student")
+}
+
+model test_attempt_answers {
+  id             Int            @id @default(autoincrement()) @db.UnsignedInt
+  attempt_id     Int            @db.UnsignedInt
+  question_id    Int            @db.UnsignedInt
+  selected_json  String?        @db.Text
+  response_text  String?        @db.VarChar(500)
+  is_correct     Boolean        @default(false)
+  awarded_marks  Int            @default(0) @db.UnsignedInt
+  test_attempts  test_attempts  @relation(fields: [attempt_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_taa_attempt")
+  test_questions test_questions @relation(fields: [question_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_taa_q")
+
+  @@index([attempt_id], map: "idx_attempt")
+  @@index([question_id], map: "fk_taa_q")
 }
 
 model exam_marks {
@@ -1246,6 +1347,42 @@ enum holidays_type {
   school
   optional
   weekend
+}
+
+enum calendar_events_category {
+  event
+  ptm
+  function
+  activity
+  sports
+  exam
+  fee
+  meeting
+  notice
+  holiday
+  other
+}
+
+enum calendar_events_audience {
+  all
+  staff
+  parents
+}
+
+enum tests_status {
+  draft
+  published
+  closed
+}
+
+enum test_questions_q_type {
+  mcq
+  fill_blank
+}
+
+enum test_attempts_status {
+  in_progress
+  submitted
 }
 
 enum attendance_status {

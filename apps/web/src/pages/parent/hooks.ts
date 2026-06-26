@@ -1,9 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { parentApi } from "@/lib/parent-api";
 import type {
   ParentAttendanceMonth, ParentContactResponse, ParentDiaryResponse,
   ParentExamsResponse, ParentFeesResponse, ParentLoginResponse,
   ParentMoreInfo, ParentTimetableResponse,
+  CalendarFeedResponse,
+  ParentTestListResponse, ParentTestDetail, TestSubmitInput, TestSubmitResult,
+  MaskedCallRequest, MaskedCallResult,
 } from "@crestly/shared";
 
 const KEY = ["parent"] as const;
@@ -74,5 +77,45 @@ export function useParentMoreInfo() {
     queryKey: [...KEY, "more"],
     staleTime: 5 * 60_000,
     queryFn: async () => (await parentApi.get<ParentMoreInfo>("/parent/more")).data,
+  });
+}
+
+export function useParentCalendar(sr: number, month: string) {
+  return useQuery({
+    queryKey: [...KEY, "calendar", sr, month],
+    queryFn: async () =>
+      (await parentApi.get<CalendarFeedResponse>("/parent/calendar", { params: { sr: sr || undefined, month } })).data,
+  });
+}
+
+export function useParentTests(sr: number) {
+  return useQuery({
+    queryKey: [...KEY, "tests", sr],
+    enabled: sr > 0,
+    queryFn: async () =>
+      (await parentApi.get<ParentTestListResponse>("/parent/tests", { params: { sr } })).data,
+  });
+}
+
+export function useParentTestDetail(id: number, sr: number) {
+  return useQuery({
+    queryKey: [...KEY, "test", id, sr],
+    enabled: sr > 0 && id > 0,
+    queryFn: async () =>
+      (await parentApi.get<ParentTestDetail>(`/parent/tests/${id}`, { params: { sr } })).data,
+  });
+}
+
+export function useSubmitParentTest(id: number) {
+  return useMutation({
+    mutationFn: async (input: TestSubmitInput) =>
+      (await parentApi.post<TestSubmitResult>(`/parent/tests/${id}/submit`, input)).data,
+  });
+}
+
+export function useMaskedCall() {
+  return useMutation({
+    mutationFn: async (input: MaskedCallRequest) =>
+      (await parentApi.post<MaskedCallResult>("/parent/contact/call", input)).data,
   });
 }

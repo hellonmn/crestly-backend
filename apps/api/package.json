@@ -13,7 +13,8 @@
     "db:studio": "prisma studio",
     "seed:demo": "ts-node --transpile-only -P tsconfig.json scripts/seed-demo.ts",
     "seed:super": "ts-node --transpile-only -P tsconfig.json scripts/seed-super.ts",
-    "seed:teacher": "ts-node --transpile-only -P tsconfig.json scripts/seed-teacher.ts"
+    "seed:teacher": "ts-node --transpile-only -P tsconfig.json scripts/seed-teacher.ts",
+    "seed:features": "ts-node --transpile-only -P tsconfig.json scripts/seed-feature-demo.ts"
   },
   "dependencies": {
     "@crestly/shared": "*",

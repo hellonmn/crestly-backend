@@ -14,6 +14,9 @@ import { ClassesModule } from "./classes/classes.module";
 import { StreamsModule } from "./streams/streams.module";
 import { FamiliesModule } from "./families/families.module";
 import { HolidaysModule } from "./holidays/holidays.module";
+import { CalendarModule } from "./calendar/calendar.module";
+import { CallingModule } from "./calling/calling.module";
+import { TestsModule } from "./tests/tests.module";
 import { AttendanceModule } from "./attendance/attendance.module";
 import { FeesModule } from "./fees/fees.module";
 import { DiaryModule } from "./diary/diary.module";
@@ -66,6 +69,9 @@ import { JwtAuthGuard } from "./auth/jwt-auth.guard";
     StreamsModule,
     FamiliesModule,
     HolidaysModule,
+    CalendarModule,
+    CallingModule,
+    TestsModule,
     AttendanceModule,
     FeesModule,
     DiaryModule,

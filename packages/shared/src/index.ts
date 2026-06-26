@@ -139,6 +139,51 @@ export type {
   FamilyUpsert,
 } from "./families";
 
+// --- tests (mcq + fill-in-the-blanks) ---
+export {
+  TestStatusSchema, QuestionTypeSchema, McqOptionSchema,
+  TestQuestionUpsertSchema, TestUpsertSchema,
+  TestQuestionSchema, TestSchema, TestListItemSchema, TestListQuerySchema,
+  TestResultRowSchema, TestResultsResponseSchema,
+  AttemptQuestionSchema, ParentTestListItemSchema, ParentTestListResponseSchema,
+  ParentTestDetailSchema, TestAnswerInputSchema, TestSubmitSchema,
+  GradedAnswerSchema, TestSubmitResultSchema,
+} from "./tests";
+export type {
+  TestStatus, QuestionType, McqOption,
+  TestQuestionUpsert, TestUpsert,
+  TestQuestion, Test, TestListItem, TestListQuery,
+  TestResultRow, TestResultsResponse,
+  AttemptQuestion, ParentTestListItem, ParentTestListResponse,
+  ParentTestDetail, TestAnswerInput, TestSubmitInput,
+  GradedAnswer, TestSubmitResult,
+} from "./tests";
+
+// --- calling (masked calls, Exotel) ---
+export {
+  CALL_PROVIDERS, CallProviderSchema,
+  CallingSettingsSchema, CallingSettingsUpdateSchema,
+  MaskedCallResultSchema, MaskedCallRequestSchema, CallingTestResultSchema,
+} from "./calling";
+export type {
+  CallProvider, CallingSettings, CallingSettingsUpdate,
+  MaskedCallResult, MaskedCallRequest, CallingTestResult,
+} from "./calling";
+
+// --- calendar (school events feed) ---
+export {
+  CalendarCategorySchema, CalendarAudienceSchema,
+  CalendarEventSchema, CalendarEventUpsertSchema,
+  CalendarFeedSourceSchema, CalendarFeedItemSchema,
+  CalendarFeedQuerySchema, CalendarFeedResponseSchema,
+} from "./calendar";
+export type {
+  CalendarCategory, CalendarAudience,
+  CalendarEvent, CalendarEventUpsert,
+  CalendarFeedSource, CalendarFeedItem,
+  CalendarFeedQuery, CalendarFeedResponse,
+} from "./calendar";
+
 // --- holidays ---
 export {
   HolidayTypeSchema,

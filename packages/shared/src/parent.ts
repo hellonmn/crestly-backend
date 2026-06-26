@@ -224,10 +224,15 @@ export const ParentContactStaffSchema = z.object({
   roleLabel: z.string(),                          // "Class Teacher", "Principal", etc.
   name: z.string(),
   designation: z.string().nullable(),
+  /** Personal number — null when masked calling is on (never exposed). */
   phone: z.string().nullable(),
   whatsapp: z.string().nullable(),
   callStart: z.string().nullable(),
   callEnd: z.string().nullable(),
+  /** True only inside this staffer's call window right now (office gating). */
+  canCallNow: z.boolean(),
+  /** True when calls route through the masking provider (number hidden). */
+  callMasked: z.boolean(),
   subjects: z.array(z.string()).optional(),       // for subject teachers
   isClassTeacher: z.boolean().optional(),
 });
@@ -248,6 +253,11 @@ export const ParentContactResponseSchema = z.object({
   srNumber: z.number().int(),
   classLabel: z.string(),
   office: ParentOfficeStatusSchema,
+  /** True when masked calling is configured — drives the call button mode. */
+  callingEnabled: z.boolean(),
+  /** School's WhatsApp business number — the after-hours channel that never
+   *  exposes a staffer's personal number. Null when WhatsApp isn't set up. */
+  schoolWhatsapp: z.string().nullable(),
   subjectTeachers: z.array(ParentContactStaffSchema),
   schoolChain: z.array(ParentContactStaffSchema),  // reception → principal → etc.
 });

@@ -34,6 +34,18 @@ export function ParentMorePage() {
       <h2 className="pm__h">ACADEMICS</h2>
       <div className="pm__list">
         <MenuLink
+          to={firstKid ? `/parent/tests?sr=${firstKid.srNumber}` : "/parent/tests"}
+          icon="exams"
+          title="Tests"
+          subtitle="Attempt assigned tests & see scores"
+        />
+        <MenuLink
+          to={firstKid ? `/parent/calendar?sr=${firstKid.srNumber}` : "/parent/calendar"}
+          icon="calendar"
+          title="Calendar"
+          subtitle="Events, holidays & exam dates"
+        />
+        <MenuLink
           to={firstKid ? `/parent/diary?sr=${firstKid.srNumber}` : "/parent/diary"}
           icon="diary"
           title="Diary & Homework"

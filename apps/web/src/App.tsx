@@ -35,6 +35,17 @@ import { FamilyEditPage } from "@/pages/families/FamilyEditPage";
 // Holidays
 import { HolidaysPage } from "@/pages/holidays/HolidaysPage";
 
+// Calendar (school events feed)
+import { CalendarPage } from "@/pages/calendar/CalendarPage";
+
+// Tests (MCQ + fill-in-the-blanks)
+import { TestsListPage } from "@/pages/tests/TestsListPage";
+import { TestEditPage } from "@/pages/tests/TestEditPage";
+import { TestResultsPage } from "@/pages/tests/TestResultsPage";
+
+// Masked calling settings
+import { CallingSettingsPage } from "@/pages/calling/CallingSettingsPage";
+
 // Batch B: daily driver
 import { AttendancePage } from "@/pages/attendance/AttendancePage";
 import { AttendanceHistoryPage } from "@/pages/attendance/AttendanceHistoryPage";
@@ -77,6 +88,9 @@ import { ParentDiaryPage } from "@/pages/parent/ParentDiaryPage";
 import { ParentTimetablePage } from "@/pages/parent/ParentTimetablePage";
 import { ParentContactPage } from "@/pages/parent/ParentContactPage";
 import { ParentMorePage } from "@/pages/parent/ParentMorePage";
+import { ParentCalendarPage } from "@/pages/parent/ParentCalendarPage";
+import { ParentTestsPage } from "@/pages/parent/ParentTestsPage";
+import { ParentTestAttemptPage } from "@/pages/parent/ParentTestAttemptPage";
 import { PromotionPage } from "@/pages/promotion/PromotionPage";
 import { AdmissionsListPage } from "@/pages/admissions/AdmissionsListPage";
 import { EnquiryViewPage } from "@/pages/admissions/EnquiryViewPage";
@@ -156,6 +170,9 @@ export function App() {
         <Route path="diary"        element={<ParentDiaryPage />} />
         <Route path="timetable"    element={<ParentTimetablePage />} />
         <Route path="contact"      element={<ParentContactPage />} />
+        <Route path="calendar"     element={<ParentCalendarPage />} />
+        <Route path="tests"        element={<ParentTestsPage />} />
+        <Route path="tests/:id"    element={<ParentTestAttemptPage />} />
         <Route path="more"         element={<ParentMorePage />} />
       </Route>
 
@@ -202,6 +219,15 @@ export function App() {
 
         {/* Holidays */}
         <Route path="holidays" element={<HolidaysPage />} />
+
+        {/* Calendar */}
+        <Route path="calendar" element={<CalendarPage />} />
+
+        {/* Tests */}
+        <Route path="tests" element={<TestsListPage />} />
+        <Route path="tests/new" element={<TestEditPage />} />
+        <Route path="tests/:id/edit" element={<TestEditPage />} />
+        <Route path="tests/:id/results" element={<TestResultsPage />} />
 
         {/* Batch B */}
         <Route path="attendance" element={<AttendancePage />} />
@@ -287,6 +313,7 @@ export function App() {
         <Route path="settings/whatsapp/log" element={<WhatsappLogPage />} />
         <Route path="settings/payment-gateway" element={<PaymentGatewaySettingsPage />} />
         <Route path="settings/ai" element={<AiSettingsPage />} />
+        <Route path="settings/calling" element={<CallingSettingsPage />} />
         <Route path="features" element={<FeaturesStorePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

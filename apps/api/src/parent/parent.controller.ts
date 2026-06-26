@@ -6,8 +6,12 @@ import { ParentService } from "./parent.service";
 import { ZodPipe } from "../common/zod.pipe";
 import { Public } from "../auth/public.decorator";
 import { ParentJwtGuard, type RequestWithParent } from "./parent-jwt.guard";
-import { ParentLoginInputSchema, CheckoutCreateSchema } from "@crestly/shared";
-import type { ParentLoginInput, CheckoutCreateInput } from "@crestly/shared";
+import {
+  ParentLoginInputSchema, CheckoutCreateSchema, MaskedCallRequestSchema, TestSubmitSchema,
+} from "@crestly/shared";
+import type {
+  ParentLoginInput, CheckoutCreateInput, MaskedCallRequest, TestSubmitInput,
+} from "@crestly/shared";
 
 @Controller("parent")
 export class ParentController {
@@ -126,9 +130,71 @@ export class ParentController {
 
   @Public()
   @UseGuards(ParentJwtGuard)
+  @Get("calendar")
+  calendar(
+    @Req() req: RequestWithParent,
+    @Query("sr") srRaw?: string,
+    @Query("month") monthRaw?: string,
+    @Query("from") fromRaw?: string,
+    @Query("to") toRaw?: string,
+  ) {
+    const month = (monthRaw ?? "").match(/^\d{4}-\d{2}$/) ? monthRaw : undefined;
+    const from = (fromRaw ?? "").match(/^\d{4}-\d{2}-\d{2}$/) ? fromRaw : undefined;
+    const to = (toRaw ?? "").match(/^\d{4}-\d{2}-\d{2}$/) ? toRaw : undefined;
+    // Default to the current month when no range is supplied.
+    const range =
+      month || from || to ? { month, from, to } : { month: new Date().toISOString().slice(0, 7) };
+    const sr = srRaw ? Number(srRaw) : undefined;
+    return this.parent.calendar(range, req.parent!.srs, sr);
+  }
+
+  @Public()
+  @UseGuards(ParentJwtGuard)
   @Get("contact")
   contact(@Req() req: RequestWithParent, @Query("sr") srRaw: string) {
     return this.parent.contact(Number(srRaw), req.parent!.srs);
+  }
+
+  /** Place a masked parent ↔ staff call (no numbers exposed to either side). */
+  @Public()
+  @UseGuards(ParentJwtGuard)
+  @Post("contact/call")
+  call(
+    @Req() req: RequestWithParent,
+    @Body(new ZodPipe(MaskedCallRequestSchema)) body: MaskedCallRequest,
+  ) {
+    return this.parent.callStaff(body.sr, body.staffId, req.parent!.phone, req.parent!.srs);
+  }
+
+  /* ───────── Tests (MCQ + fill-in-the-blanks) ───────── */
+
+  @Public()
+  @UseGuards(ParentJwtGuard)
+  @Get("tests")
+  tests(@Req() req: RequestWithParent, @Query("sr") srRaw: string) {
+    return this.parent.tests(Number(srRaw), req.parent!.srs);
+  }
+
+  @Public()
+  @UseGuards(ParentJwtGuard)
+  @Get("tests/:id")
+  testDetail(
+    @Req() req: RequestWithParent,
+    @Param("id", ParseIntPipe) id: number,
+    @Query("sr") srRaw: string,
+  ) {
+    return this.parent.testDetail(id, Number(srRaw), req.parent!.srs);
+  }
+
+  @Public()
+  @UseGuards(ParentJwtGuard)
+  @Post("tests/:id/submit")
+  submitTest(
+    @Req() req: RequestWithParent,
+    @Param("id", ParseIntPipe) id: number,
+    @Body(new ZodPipe(TestSubmitSchema)) body: TestSubmitInput,
+  ) {
+    return this.parent.submitTest(id, body, req.parent!.srs, req.parent!.phone);
   }
 
   @Public()
