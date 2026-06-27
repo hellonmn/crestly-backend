@@ -14,7 +14,27 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true, bodyParser: false });
   const config = app.get(ConfigService);
 
-  app.use(json({ limit: "10mb" }));
+  // Parse the JSON body even when the client mislabels (or omits) the
+  // Content-Type. React Native's `fetch` doesn't auto-set
+  // `application/json`, so a correct payload can arrive as text/plain or with
+  // no content-type at all — Express's default parser would then skip it and
+  // the controller's ZodPipe sees `{}` ("title required"). We parse anything
+  // that isn't clearly multipart/urlencoded (multer + the urlencoded parser
+  // below still handle those), so JSON bodies just work regardless of header.
+  app.use(
+    json({
+      limit: "10mb",
+      type: (req) => {
+        const ct = (req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
+        if (!ct) return true; // no header → assume JSON (common on mobile)
+        return (
+          ct === "application/json" ||
+          ct === "text/plain" ||
+          ct.endsWith("+json")
+        );
+      },
+    }),
+  );
   app.use(urlencoded({ extended: true, limit: "10mb" }));
 
   app.use(helmet());
