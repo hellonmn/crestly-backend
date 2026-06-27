@@ -147,3 +147,40 @@ npm run seed:features -w @crestly/api
 ```
 
 Idempotent — guards on titles, safe to re-run.
+
+---
+
+## 6. Additions (2026-06-27)
+
+**Migration:** `apps/api/migrations/2026_06_27_test_pass_marks.sql` — run on every
+tenant DB (adds `tests.pass_marks`), then `npm run db:generate -w @crestly/api`.
+
+### Tests — authoring upgrades
+- **Class & section pickers** — the create/edit screen now selects class +
+  section from the live `/classes` list (dropdowns, not free text). Subject is a
+  dropdown from `/exams/subjects`.
+- **Total + passing marks** — total marks is auto (sum of question marks); the
+  teacher sets an optional **passing mark** (`passMarks`, clamped ≤ total). When
+  set, results and the parent view show **Pass/Fail** (`passed`) and the score
+  card shows the pass line. Surfaced on `Test`, `TestListItem`,
+  `ParentTestListItem`, `TestResultsResponse`, `TestSubmitResult`.
+- **Import questions** — `POST /api/tests/parse-questions` `{ text, format }`
+  → `{ questions, errors }`. Parses pasted text (copy from Google Docs/Word) or
+  CSV into draft questions the teacher reviews before saving. Text format: one
+  question per blank-line-separated block; MCQ options start with `*` (correct)
+  or `-`, fill-blank answers with `=`, optional `[marks]` at the end of the
+  prompt. CSV header: `type,prompt,marks,options,correct,accepted,caseSensitive`
+  (`options`/`correct`/`accepted` pipe-separated, `correct` = 0-based indices).
+  > Direct Google Drive/Docs OAuth import is not wired — copy-paste covers it.
+  > Add a Drive picker later if needed.
+
+### Attendance — class-teacher scoping
+Only the **class teacher** can mark attendance, and only for **their own
+section**. Enforced server-side in `roster` / `mark` / `bulk`.
+- `GET /api/attendance/my-classes` → `{ canMarkAll, classes[] }` — the class+
+  sections the user may mark. The attendance page's class/section pickers are
+  driven by this (a class teacher sees only their section).
+- **Privileged override:** users with the `attendance.mark_all` permission, or
+  roles `admin / principal / vice_principal / head / coordinator`, keep full
+  access (`canMarkAll: true`). Everyone else is limited to sections where
+  `sections.teacher_user_id` = their user id.

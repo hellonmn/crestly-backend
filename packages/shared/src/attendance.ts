@@ -74,3 +74,24 @@ export const AttendanceHistoryResponseSchema = z.object({
   days: z.record(z.string(), AttendanceStatusSchema),
 });
 export type AttendanceHistoryResponse = z.infer<typeof AttendanceHistoryResponseSchema>;
+
+/* ─────────────────── Markable classes (class-teacher scope) ─────────────────── */
+
+/** A class+section the current user is allowed to mark attendance for. */
+export const MarkableClassSchema = z.object({
+  classSlug: z.string(),
+  className: z.string(),
+  sectionCode: z.string(),
+});
+export type MarkableClass = z.infer<typeof MarkableClassSchema>;
+
+/**
+ * Which class+sections the logged-in user may mark. Class teachers get only
+ * their own section(s); privileged users (admins/principal or anyone with
+ * `attendance.mark_all`) get every section and `canMarkAll: true`.
+ */
+export const MarkableClassesResponseSchema = z.object({
+  canMarkAll: z.boolean(),
+  classes: z.array(MarkableClassSchema),
+});
+export type MarkableClassesResponse = z.infer<typeof MarkableClassesResponseSchema>;

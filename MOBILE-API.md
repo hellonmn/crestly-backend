@@ -324,3 +324,41 @@ means don't let them re-submit; show the score instead.
 
 Endpoint-by-endpoint backend notes (auth realms, table layout, Exotel setup)
 live in [FEATURES.md](FEATURES.md).
+
+---
+
+## 5. Additions (2026-06-27)
+
+### Tests — passing marks
+`TestUpsert` accepts an optional **`passMarks`** (integer, ≤ total). These read
+shapes now carry it:
+- `Test`, `TestListItem` → `passMarks: number | null`
+- `TestResultsResponse` → `passMarks`; each `TestResultRow` → `passed: boolean | null`
+- `ParentTestListItem` → `passMarks`, `passed`
+- `TestSubmitResult` → `passMarks`, `passed`
+
+`passed` = `score >= passMarks`; it's `null` when no pass mark is set or the test
+isn't yet submitted. Render Pass/Fail only when `passed != null`.
+
+### Tests — import questions (staff)
+`POST /api/tests/parse-questions` *(staff token)*
+```jsonc
+// request
+{ "text": "What is 2+2? [1]\n- 3\n* 4\n- 5", "format": "auto" }  // format: auto | text | csv
+// response
+{ "questions": [ /* TestQuestionUpsert[] — feed straight into the create form */ ],
+  "errors":    [ "Q2 \"...\": MCQ needs at least 2 options." ] }
+```
+Server-side parse only; the teacher reviews `questions` then POSTs `/tests`.
+Mobile can offer a "paste to import" box and reuse this.
+
+### Attendance — class-teacher scope
+`GET /api/attendance/my-classes` *(staff token)* →
+```jsonc
+{ "canMarkAll": false,
+  "classes": [ { "classSlug": "6", "className": "Class 6", "sectionCode": "A" } ] }
+```
+Drive the class/section picker from this. A class teacher gets only their own
+section(s); `canMarkAll: true` (admins/principal) returns every section.
+`roster`, `mark`, and `bulk` all reject a class/section outside this list with
+**403** — so the mobile UI should only ever offer what `my-classes` returns.

@@ -4,8 +4,7 @@ import { Icon } from "@crestly/icons";
 import { PageHead } from "@/components/PageHead";
 import { StatTile } from "@/components/StatTile";
 import { Skeleton } from "@/components/Skeleton";
-import { useBulkAttendance, useMarkAttendance, useRoster } from "./hooks";
-import { useClasses } from "../classes/hooks";
+import { useBulkAttendance, useMarkAttendance, useRoster, useMyAttendanceClasses } from "./hooks";
 import type { AttendanceStatus } from "@crestly/shared";
 
 const STATUSES: { value: AttendanceStatus; label: string; pill: string }[] = [
@@ -23,12 +22,16 @@ export function AttendancePage() {
   const [section, setSection] = useState("");
   const ready = !!classSlug && !!section;
 
-  const { data: classes, isLoading: classesLoading } = useClasses();
+  const { data: my, isLoading: classesLoading } = useMyAttendanceClasses();
   const { data, isLoading } = useRoster(ready ? { date, class: classSlug, section } : null);
   const mark = useMarkAttendance();
   const bulkMark = useBulkAttendance();
 
-  const sectionsForClass = (classes ?? []).find((c) => c.slug === classSlug)?.sections ?? [];
+  const markable = my?.classes ?? [];
+  // Distinct classes from the flat (class, section) list the user may mark.
+  const classes = Array.from(new Map(markable.map((c) => [c.classSlug, c.className])).entries())
+    .map(([slug, name]) => ({ slug, name }));
+  const sectionsForClass = markable.filter((c) => c.classSlug === classSlug);
 
   function onSetStatus(srNumber: number, status: AttendanceStatus) {
     mark.mutate({ srNumber, date, status });
@@ -80,7 +83,7 @@ export function AttendancePage() {
           disabled={classesLoading}
         >
           <option value="">{classesLoading ? "Loading classes…" : "Select class"}</option>
-          {classes?.map((c) => <option key={c.id} value={c.slug}>{c.name}</option>)}
+          {classes.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
         </select>
 
         <select
@@ -91,9 +94,7 @@ export function AttendancePage() {
         >
           <option value="">{classSlug ? "Select section" : "Pick class first"}</option>
           {sectionsForClass.map((s) => (
-            <option key={s.id} value={s.code}>
-              {s.code}{s.teacherName ? ` · ${s.teacherName}` : ""} ({s.studentCount})
-            </option>
+            <option key={s.sectionCode} value={s.sectionCode}>{s.sectionCode}</option>
           ))}
         </select>
 

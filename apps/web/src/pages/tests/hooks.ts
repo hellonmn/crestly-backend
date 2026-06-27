@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type {
   Test, TestListItem, TestListQuery, TestUpsert, TestResultsResponse,
+  TestImportRequest, TestImportResult,
 } from "@crestly/shared";
 
 const KEY = ["tests"] as const;
@@ -53,5 +54,12 @@ export function useDeleteTest() {
   return useMutation({
     mutationFn: async (id: number) => (await api.delete<{ ok: true }>(`/tests/${id}`)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+export function useParseQuestions() {
+  return useMutation({
+    mutationFn: async (input: TestImportRequest) =>
+      (await api.post<TestImportResult>("/tests/parse-questions", input)).data,
   });
 }

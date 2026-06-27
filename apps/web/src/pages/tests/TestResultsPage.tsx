@@ -39,9 +39,16 @@ export function TestResultsPage() {
         </div>
       ) : (
         <div className="card" style={{ marginTop: 18, overflowX: "auto" }}>
+          {data.passMarks != null && (
+            <div className="muted body-s" style={{ padding: "10px 12px 0" }}>Pass mark: <b>{data.passMarks}</b> / {data.totalMarks}</div>
+          )}
           <table className="table">
             <thead>
-              <tr><th>Student</th><th>Class</th><th>Score</th><th>%</th><th>Status</th><th>Submitted</th></tr>
+              <tr>
+                <th>Student</th><th>Class</th><th>Score</th><th>%</th>
+                {data.passMarks != null && <th>Result</th>}
+                <th>Status</th><th>Submitted</th>
+              </tr>
             </thead>
             <tbody>
               {data.attempts.map((a) => {
@@ -52,6 +59,13 @@ export function TestResultsPage() {
                     <td>{a.classLabel}</td>
                     <td>{a.score != null ? `${a.score} / ${a.maxScore}` : "—"}</td>
                     <td>{pct != null ? `${pct}%` : "—"}</td>
+                    {data.passMarks != null && (
+                      <td>
+                        {a.passed == null ? "—" : (
+                          <span className={`chip ${a.passed ? "chip--success" : "chip--error"}`}>{a.passed ? "Pass" : "Fail"}</span>
+                        )}
+                      </td>
+                    )}
                     <td><span className={`chip ${a.status === "submitted" ? "chip--success" : "chip--muted"}`}>{a.status === "submitted" ? "submitted" : "in progress"}</span></td>
                     <td>{a.submittedAt ? new Date(a.submittedAt).toLocaleString() : "—"}</td>
                   </tr>

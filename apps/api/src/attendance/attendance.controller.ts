@@ -21,10 +21,19 @@ import type {
 export class AttendanceController {
   constructor(private readonly attendance: AttendanceService) {}
 
+  @Get("my-classes")
+  @RequirePerm("attendance.view")
+  myClasses(@CurrentUser() user: User) {
+    return this.attendance.myClasses(user);
+  }
+
   @Get("roster")
   @RequirePerm("attendance.view")
-  roster(@Query(new ZodPipe(AttendanceRosterQuerySchema)) query: AttendanceRosterQuery) {
-    return this.attendance.roster(query);
+  roster(
+    @Query(new ZodPipe(AttendanceRosterQuerySchema)) query: AttendanceRosterQuery,
+    @CurrentUser() user: User,
+  ) {
+    return this.attendance.roster(query, user);
   }
 
   @Post("mark")

@@ -36,7 +36,12 @@ export function ParentTestsPage() {
               </div>
             </div>
             {t.state === "attempted" && t.score != null ? (
-              <span className="pt__score">{t.score}/{t.totalMarks}</span>
+              <span className="pt__scorewrap">
+                <span className="pt__score">{t.score}/{t.totalMarks}</span>
+                {t.passed != null && (
+                  <span className={`pt__pf ${t.passed ? "is-pass" : "is-fail"}`}>{t.passed ? "PASS" : "FAIL"}</span>
+                )}
+              </span>
             ) : (
               <span className={`pt__badge pt__badge--${t.state}`}>{STATE_LABEL[t.state]}</span>
             )}
@@ -65,7 +70,11 @@ const CSS = `
   .pt__row:hover { border-color: var(--orange); }
   .pt__row--off { opacity: .6; }
   .pt__name { font-weight: 700; font-size: 14px; }
-  .pt__score { font-family: var(--font-mono, monospace); font-weight: 800; font-size: 15px; color: var(--orange-deep, #b8410b); flex-shrink: 0; }
+  .pt__scorewrap { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
+  .pt__score { font-family: var(--font-mono, monospace); font-weight: 800; font-size: 15px; color: var(--orange-deep, #b8410b); }
+  .pt__pf { font-size: 9px; font-weight: 800; letter-spacing: .06em; padding: 1px 6px; border-radius: 999px; }
+  .pt__pf.is-pass { background: #dcfce7; color: #166534; }
+  .pt__pf.is-fail { background: rgba(220,38,38,.12); color: #dc2626; }
   .pt__badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; flex-shrink: 0; }
   .pt__badge--available { background: var(--orange); color: #fff; }
   .pt__badge--upcoming { background: var(--cream-soft); color: var(--ink-60); }

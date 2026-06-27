@@ -66,6 +66,11 @@ export function ParentTestAttemptPage() {
           <div className="muted body-s">YOUR SCORE</div>
           <div className="pta__big">{result.score}<span className="muted">/{result.maxScore}</span></div>
           <div className="pta__pct">{result.percent}%</div>
+          {result.passed != null && (
+            <div className={`pta__pf ${result.passed ? "is-pass" : "is-fail"}`}>
+              {result.passed ? "PASSED" : "FAILED"}{result.passMarks != null ? ` · pass mark ${result.passMarks}` : ""}
+            </div>
+          )}
         </div>
         {result.answers.map((a, i) => (
           <div key={a.questionId} className={`pta__q ${a.isCorrect ? "is-right" : "is-wrong"}`}>
@@ -147,4 +152,7 @@ const CSS = `
   .pta__big { font-family: var(--font-display, system-ui); font-weight: 800; font-size: 40px; line-height: 1; margin: 6px 0; }
   .pta__big .muted { color: rgba(248,240,226,.5); font-size: 22px; }
   .pta__pct { font-family: var(--font-mono, monospace); color: var(--orange); font-weight: 700; }
+  .pta__pf { display: inline-block; margin-top: 10px; font-size: 12px; font-weight: 800; letter-spacing: .04em; padding: 4px 12px; border-radius: 999px; }
+  .pta__pf.is-pass { background: #dcfce7; color: #166534; }
+  .pta__pf.is-fail { background: rgba(220,38,38,.18); color: #fecaca; }
 `;

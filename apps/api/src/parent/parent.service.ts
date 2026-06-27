@@ -750,6 +750,11 @@ export class ParentService {
           availableTo: t.available_to ? t.available_to.toISOString() : null,
           state,
           score: att?.score ?? null,
+          passMarks: t.pass_marks,
+          passed:
+            t.pass_marks != null && att?.status === "submitted" && att.score != null
+              ? att.score >= t.pass_marks
+              : null,
         };
       }),
     };
@@ -834,6 +839,8 @@ export class ParentService {
       score,
       maxScore,
       percent: maxScore > 0 ? Math.round((score / maxScore) * 1000) / 10 : 0,
+      passMarks: test.pass_marks,
+      passed: test.pass_marks != null ? score >= test.pass_marks : null,
       submittedAt: now.toISOString(),
       answers: graded.map((g) => ({
         questionId: g.q.id,

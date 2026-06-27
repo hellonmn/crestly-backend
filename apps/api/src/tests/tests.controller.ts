@@ -4,8 +4,8 @@ import {
 import { TestsService } from "./tests.service";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { ZodPipe } from "../common/zod.pipe";
-import { TestUpsertSchema, TestListQuerySchema } from "@crestly/shared";
-import type { TestUpsert, TestListQuery, CurrentUser as User } from "@crestly/shared";
+import { TestUpsertSchema, TestListQuerySchema, TestImportRequestSchema } from "@crestly/shared";
+import type { TestUpsert, TestListQuery, TestImportRequest, CurrentUser as User } from "@crestly/shared";
 
 @Controller("tests")
 export class TestsController {
@@ -24,6 +24,11 @@ export class TestsController {
   @Get(":id/results")
   results(@Param("id", ParseIntPipe) id: number) {
     return this.tests.results(id);
+  }
+
+  @Post("parse-questions")
+  parseQuestions(@Body(new ZodPipe(TestImportRequestSchema)) body: TestImportRequest) {
+    return this.tests.parseImport(body);
   }
 
   @Post()

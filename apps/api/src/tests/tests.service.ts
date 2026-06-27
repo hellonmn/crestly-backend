@@ -5,9 +5,10 @@ import type { Prisma } from "@prisma/client";
 import { RequestPrismaService } from "../prisma/request-prisma.service";
 import type {
   Test, TestListItem, TestListQuery, TestStatus, TestUpsert,
-  TestResultsResponse,
+  TestResultsResponse, TestImportRequest, TestImportResult,
 } from "@crestly/shared";
 import { toTestQuestionDto } from "./tests.grading";
+import { parseQuestions } from "./tests.import";
 
 /**
  * Teacher-facing online tests (MCQ + fill-in-the-blanks).
@@ -39,6 +40,7 @@ export class TestsService {
       subjectName: r.subject_id ? subjMap.get(r.subject_id) ?? null : null,
       status: r.status,
       totalMarks: r.total_marks,
+      passMarks: r.pass_marks,
       questionCount: r._count.test_questions,
       attemptCount: r._count.test_attempts,
       availableFrom: isoDateTime(r.available_from),
@@ -71,6 +73,7 @@ export class TestsService {
       availableTo: isoDateTime(row.available_to),
       shuffle: Boolean(row.shuffle),
       totalMarks: row.total_marks,
+      passMarks: row.pass_marks,
       questionCount: row.test_questions.length,
       createdBy: row.created_by,
       createdAt: row.created_at ? row.created_at.toISOString() : null,
@@ -82,7 +85,13 @@ export class TestsService {
     const sessionCode = input.sessionCode ?? (await this.currentSessionCode());
     const totalMarks = input.questions.reduce((s, q) => s + q.marks, 0);
     const created = await this.prisma.db.tests.create({
-      data: { ...testRow(input), session_code: sessionCode, total_marks: totalMarks, created_by: userId },
+      data: {
+        ...testRow(input),
+        session_code: sessionCode,
+        total_marks: totalMarks,
+        pass_marks: clampPass(input.passMarks, totalMarks),
+        created_by: userId,
+      },
     });
     await this.prisma.db.test_questions.createMany({
       data: input.questions.map((q, i) => questionRow(q, created.id, i)),
@@ -105,7 +114,7 @@ export class TestsService {
       this.prisma.db.test_questions.deleteMany({ where: { test_id: id } }),
       this.prisma.db.tests.update({
         where: { id },
-        data: { ...testRow(input), total_marks: totalMarks },
+        data: { ...testRow(input), total_marks: totalMarks, pass_marks: clampPass(input.passMarks, totalMarks) },
       }),
     ]);
     await this.prisma.db.test_questions.createMany({
@@ -157,13 +166,19 @@ export class TestsService {
         ? round1((submitted.reduce((s, a) => s + (a.score ?? 0), 0) / (submitted.length * test.total_marks)) * 100)
         : null;
 
+    const passMarks = test.pass_marks;
     return {
       testId: id,
       title: test.title,
       totalMarks: test.total_marks,
+      passMarks,
       averagePct,
       attempts: attempts.map((a) => {
         const st = sMap.get(a.sr_number);
+        const passed =
+          passMarks != null && a.status === "submitted" && a.score != null
+            ? a.score >= passMarks
+            : null;
         return {
           attemptId: a.id,
           srNumber: a.sr_number,
@@ -171,11 +186,17 @@ export class TestsService {
           classLabel: st ? `${st.class}-${st.section}` : "",
           score: a.score,
           maxScore: a.max_score,
+          passed,
           status: a.status,
           submittedAt: a.submitted_at ? a.submitted_at.toISOString() : null,
         };
       }),
     };
+  }
+
+  /** Parse pasted text / CSV into draft questions for the authoring UI. */
+  parseImport(input: TestImportRequest): TestImportResult {
+    return parseQuestions(input.text, input.format);
   }
 
   /* ─────────────────── internals ─────────────────── */
@@ -229,6 +250,12 @@ function questionRow(
     answer_json: JSON.stringify(isMcq ? q.correctOptions ?? [] : q.acceptedAnswers ?? []),
     case_sensitive: q.caseSensitive,
   };
+}
+
+/** Pass mark is optional and never exceeds the test's total marks. */
+function clampPass(passMarks: number | null | undefined, totalMarks: number): number | null {
+  if (passMarks == null) return null;
+  return Math.min(Math.max(0, Math.floor(passMarks)), totalMarks);
 }
 
 function isoDateTime(d: Date | null): string | null {

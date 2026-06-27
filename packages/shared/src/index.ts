@@ -148,6 +148,7 @@ export {
   AttemptQuestionSchema, ParentTestListItemSchema, ParentTestListResponseSchema,
   ParentTestDetailSchema, TestAnswerInputSchema, TestSubmitSchema,
   GradedAnswerSchema, TestSubmitResultSchema,
+  TestImportRequestSchema, TestImportResultSchema,
 } from "./tests";
 export type {
   TestStatus, QuestionType, McqOption,
@@ -157,6 +158,7 @@ export type {
   AttemptQuestion, ParentTestListItem, ParentTestListResponse,
   ParentTestDetail, TestAnswerInput, TestSubmitInput,
   GradedAnswer, TestSubmitResult,
+  TestImportRequest, TestImportResult,
 } from "./tests";
 
 // --- calling (masked calls, Exotel) ---
@@ -210,6 +212,8 @@ export {
   AttendanceBulkSchema,
   AttendanceHistoryQuerySchema,
   AttendanceHistoryResponseSchema,
+  MarkableClassSchema,
+  MarkableClassesResponseSchema,
 } from "./attendance";
 export type {
   AttendanceStatus,
@@ -220,6 +224,8 @@ export type {
   AttendanceBulk,
   AttendanceHistoryQuery,
   AttendanceHistoryResponse,
+  MarkableClass,
+  MarkableClassesResponse,
 } from "./attendance";
 
 // --- fees ---

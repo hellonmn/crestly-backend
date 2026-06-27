@@ -70,6 +70,8 @@ export const TestUpsertSchema = z
     classSlug: z.string().min(1).max(16),
     sectionCode: z.string().max(8).nullable().optional(),
     subjectId: z.number().int().positive().nullable().optional(),
+    /** Marks needed to pass; null = no pass/fail line. Clamped ≤ total in the service. */
+    passMarks: z.number().int().min(0).max(10000).nullable().optional(),
     durationMin: z.number().int().min(1).max(600).nullable().optional(),
     availableFrom: z.string().datetime().nullable().optional(),
     availableTo: z.string().datetime().nullable().optional(),
@@ -114,6 +116,7 @@ export const TestSchema = z.object({
   availableTo: z.string().nullable(),
   shuffle: z.boolean(),
   totalMarks: z.number().int(),
+  passMarks: z.number().int().nullable(),
   questionCount: z.number().int(),
   createdBy: z.number().int().nullable(),
   createdAt: z.string().nullable(),
@@ -129,6 +132,7 @@ export const TestListItemSchema = z.object({
   subjectName: z.string().nullable(),
   status: TestStatusSchema,
   totalMarks: z.number().int(),
+  passMarks: z.number().int().nullable(),
   questionCount: z.number().int(),
   attemptCount: z.number().int(),
   availableFrom: z.string().nullable(),
@@ -152,6 +156,8 @@ export const TestResultRowSchema = z.object({
   classLabel: z.string(),
   score: z.number().int().nullable(),
   maxScore: z.number().int(),
+  /** score >= passMarks; null when no pass mark set or not yet submitted. */
+  passed: z.boolean().nullable(),
   status: z.enum(["in_progress", "submitted"]),
   submittedAt: z.string().nullable(),
 });
@@ -161,6 +167,7 @@ export const TestResultsResponseSchema = z.object({
   testId: z.number().int(),
   title: z.string(),
   totalMarks: z.number().int(),
+  passMarks: z.number().int().nullable(),
   attempts: z.array(TestResultRowSchema),
   averagePct: z.number().nullable(),
 });
@@ -192,6 +199,9 @@ export const ParentTestListItemSchema = z.object({
   /** "available" | "upcoming" | "closed" | "attempted". */
   state: z.enum(["available", "upcoming", "closed", "attempted"]),
   score: z.number().int().nullable(),
+  passMarks: z.number().int().nullable(),
+  /** score >= passMarks; null until attempted or when no pass mark set. */
+  passed: z.boolean().nullable(),
 });
 export type ParentTestListItem = z.infer<typeof ParentTestListItemSchema>;
 
@@ -253,7 +263,43 @@ export const TestSubmitResultSchema = z.object({
   score: z.number().int(),
   maxScore: z.number().int(),
   percent: z.number(),
+  passMarks: z.number().int().nullable(),
+  /** score >= passMarks; null when no pass mark is set. */
+  passed: z.boolean().nullable(),
   submittedAt: z.string(),
   answers: z.array(GradedAnswerSchema),
 });
 export type TestSubmitResult = z.infer<typeof TestSubmitResultSchema>;
+
+/* ─────────────────── Question import (paste / CSV) ─────────────────── */
+
+/**
+ * Bulk-import questions by pasting text (copied from Google Docs / Word) or
+ * CSV. The server parses into draft questions the teacher reviews before
+ * saving. Supported text format (blank line separates questions):
+ *
+ *   What is 2 + 2? [1]      ← prompt, optional [marks]
+ *   - 3                     ← MCQ option ('-' wrong)
+ *   * 4                     ← MCQ option ('*' correct)
+ *   - 5
+ *
+ *   Capital of France is ___ [2]
+ *   = Paris                 ← fill-blank accepted answer ('=')
+ *   = paris
+ *
+ * CSV (header required): type,prompt,marks,options,correct,accepted,caseSensitive
+ *   options '|'-separated; correct = 0-based indices '|'-separated; accepted '|'-separated.
+ */
+export const TestImportRequestSchema = z.object({
+  text: z.string().min(1).max(50_000),
+  /** "auto" (default) detects CSV vs the block text format. */
+  format: z.enum(["auto", "text", "csv"]).default("auto"),
+});
+export type TestImportRequest = z.infer<typeof TestImportRequestSchema>;
+
+export const TestImportResultSchema = z.object({
+  questions: z.array(TestQuestionUpsertSchema),
+  /** Human-readable problems for blocks that couldn't be parsed. */
+  errors: z.array(z.string()),
+});
+export type TestImportResult = z.infer<typeof TestImportResultSchema>;

@@ -6,9 +6,19 @@ import type {
   AttendanceMark,
   AttendanceRosterQuery,
   AttendanceRosterResponse,
+  MarkableClassesResponse,
 } from "@crestly/shared";
 
 const KEY = ["attendance"] as const;
+
+/** Classes the logged-in user may mark (class teachers → own section only). */
+export function useMyAttendanceClasses() {
+  return useQuery({
+    queryKey: [...KEY, "my-classes"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => (await api.get<MarkableClassesResponse>("/attendance/my-classes")).data,
+  });
+}
 
 export function useRoster(query: AttendanceRosterQuery | null) {
   return useQuery({
